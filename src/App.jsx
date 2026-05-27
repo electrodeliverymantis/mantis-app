@@ -1,3 +1,5 @@
+import { supabase } from './lib/supabase'
+import { loginUser, logoutUser, getCurrentUser } from './auth'
 import { useState, useEffect } from "react";
 
 // ─── MOCK DATA ────────────────────────────────────────────────────────────────
@@ -273,11 +275,29 @@ function LoginScreen({ onLogin }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
-    const u = USERS.find(u => u.email === email && u.password === password);
-    if (u) { onLogin(u); setError(""); }
-    else setError("Credenciales incorrectas");
+  const handleLogin = async () => {
+    if (!email || !password) { setError("Completá todos los campos"); return; }
+    setLoading(true);
+    setError("");
+    try {
+      const data = await loginUser(email, password);
+      const { data: perfil } = await supabase
+        .from('usuarios')
+        .select('*')
+        .eq('email', email)
+        .single();
+      if (perfil) {
+        onLogin(perfil);
+      } else {
+        onLogin({ name: data.user.email, email: data.user.email, role: 'admin' });
+      }
+    } catch (err) {
+      setError("Email o contraseña incorrectos");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const demos = [
