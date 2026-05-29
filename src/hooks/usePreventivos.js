@@ -12,16 +12,12 @@ export function usePreventivos() {
         .from('preventivos')
         .select('*')
         .order('proxima_fecha', { ascending: true })
-
       if (error) throw error
-
-      // Marcar automáticamente como vencido si la fecha ya pasó
       const hoy = new Date().toISOString().split('T')[0]
       const actualizados = (data || []).map(p => ({
         ...p,
         estado: p.proxima_fecha < hoy && p.estado !== 'realizado' ? 'vencido' : p.estado
       }))
-
       setPreventivos(actualizados)
     } catch (error) {
       console.error('Error cargando preventivos:', error)
@@ -30,14 +26,12 @@ export function usePreventivos() {
     }
   }
 
+  useEffect(() => { cargarPreventivos() }, [])
+
   const crearPreventivo = async (nuevoPreventivo) => {
     try {
       const { data, error } = await supabase
-        .from('preventivos')
-        .insert([nuevoPreventivo])
-        .select()
-        .single()
-
+        .from('preventivos').insert([nuevoPreventivo]).select().single()
       if (error) throw error
       setPreventivos(prev => [...prev, data])
       return data
@@ -47,17 +41,38 @@ export function usePreventivos() {
     }
   }
 
-  const marcarRealizado = async (id, proximaFecha) => {
+  const soloRealizado = async (id) => {
     try {
       const { error } = await supabase
-        .from('preventivos')
-        .update({ estado: 'pendiente', proxima_fecha: proximaFecha })
-        .eq('id', id)
-
+        .from('preventivos').update({ estado: 'realizado' }).eq('id', id)
       if (error) throw error
-      await cargarPreventivos()
+      setPreventivos(prev => prev.map(p =>
+        p.id === id ? { ...p, estado: 'realizado' } : p
+      ))
     } catch (error) {
-      console.error('Error marcando realizado:', error)
+      console.error('Error:', error)
+      throw error
+    }
+  }
+
+  const reagendarPreventivo = async (preventivo, proximaFecha) => {
+    try {
+      const { data: nuevo, error } = await supabase
+        .from('preventivos')
+        .insert([{
+          titulo: preventivo.titulo,
+          descripcion: preventivo.descripcion,
+          frecuencia: preventivo.frecuencia,
+          proxima_fecha: proximaFecha,
+          sector_id: preventivo.sector_id,
+          maquina_id: preventivo.maquina_id,
+          estado: 'pendiente'
+        }])
+        .select().single()
+      if (error) throw error
+      setPreventivos(prev => [...prev, nuevo])
+    } catch (error) {
+      console.error('Error reagendando:', error)
       throw error
     }
   }
@@ -65,21 +80,14 @@ export function usePreventivos() {
   const eliminarPreventivo = async (id) => {
     try {
       const { error } = await supabase
-        .from('preventivos')
-        .delete()
-        .eq('id', id)
-
+        .from('preventivos').delete().eq('id', id)
       if (error) throw error
       setPreventivos(prev => prev.filter(p => p.id !== id))
     } catch (error) {
-      console.error('Error eliminando preventivo:', error)
+      console.error('Error eliminando:', error)
       throw error
     }
   }
 
-  useEffect(() => {
-    cargarPreventivos()
-  }, [])
-
-  return { preventivos, cargando, crearPreventivo, marcarRealizado, eliminarPreventivo, recargar: cargarPreventivos }
+  return { preventivos, cargando, crearPreventivo, soloRealizado, reagendarPreventivo, eliminarPreventivo, recargar: cargarPreventivos }
 }
