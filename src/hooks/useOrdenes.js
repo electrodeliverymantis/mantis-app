@@ -39,9 +39,47 @@ export function useOrdenes() {
     }
   }
 
+  const actualizarEstado = async (ordenId, nuevoEstado, historial) => {
+    try {
+      // Actualizar estado en la orden
+      const { error: errorOrden } = await supabase
+        .from('ordenes_trabajo')
+        .update({ estado: nuevoEstado })
+        .eq('id', ordenId)
+
+      if (errorOrden) throw errorOrden
+
+      // Guardar en historial
+      const { error: errorHistorial } = await supabase
+        .from('historial_ordenes')
+        .insert([{ orden_id: ordenId, estado: nuevoEstado, ...historial }])
+
+      if (errorHistorial) throw errorHistorial
+
+      // Actualizar lista local
+      setOrdenes(prev => prev.map(o =>
+        o.id === ordenId ? { ...o, estado: nuevoEstado } : o
+      ))
+    } catch (error) {
+      console.error('Error actualizando estado:', error)
+      throw error
+    }
+  }
+
+  const cargarHistorial = async (ordenId) => {
+    const { data, error } = await supabase
+      .from('historial_ordenes')
+      .select('*')
+      .eq('orden_id', ordenId)
+      .order('fecha', { ascending: true })
+
+    if (error) throw error
+    return data || []
+  }
+
   useEffect(() => {
     cargarOrdenes()
   }, [])
 
-  return { ordenes, cargando, crearOrden, recargar: cargarOrdenes }
+  return { ordenes, cargando, crearOrden, actualizarEstado, cargarHistorial, recargar: cargarOrdenes }
 }
