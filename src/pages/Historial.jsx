@@ -27,6 +27,7 @@ export default function Historial() {
   const [cargando, setCargando] = useState(true)
   const [filtroEstado, setFiltroEstado] = useState("todos")
   const [busqueda, setBusqueda] = useState("")
+  const [filtroPeriodo, setFiltroPeriodo] = useState("total")
 
   useEffect(() => {
     const cargar = async () => {
@@ -64,8 +65,33 @@ export default function Historial() {
   const totalResueltas = ordenes.filter(o => o.estado === 'resuelto').length
 
   // Filtros
+ const filtrarPorPeriodo = (fecha) => {
+    if (!fecha || filtroPeriodo === "total") return true
+    const hoy = new Date()
+    const fechaOrden = new Date(fecha)
+    switch (filtroPeriodo) {
+      case "hoy":
+        return fechaOrden.toDateString() === hoy.toDateString()
+      case "semana":
+        const unaSemana = new Date(hoy); unaSemana.setDate(hoy.getDate() - 7)
+        return fechaOrden >= unaSemana
+      case "mes":
+        return fechaOrden.getMonth() === hoy.getMonth() && fechaOrden.getFullYear() === hoy.getFullYear()
+      case "trimestre":
+        const tresMeses = new Date(hoy); tresMeses.setMonth(hoy.getMonth() - 3)
+        return fechaOrden >= tresMeses
+      case "semestre":
+        const seisMeses = new Date(hoy); seisMeses.setMonth(hoy.getMonth() - 6)
+        return fechaOrden >= seisMeses
+      case "año":
+        return fechaOrden.getFullYear() === hoy.getFullYear()
+      default: return true
+    }
+  }
+
   const ordenesFiltradas = ordenesConMetricas
     .filter(o => filtroEstado === "todos" || o.estado === filtroEstado)
+    .filter(o => filtrarPorPeriodo(o.fecha))
     .filter(o => !busqueda ||
       o.numero?.toLowerCase().includes(busqueda.toLowerCase()) ||
       o.parte?.toLowerCase().includes(busqueda.toLowerCase()) ||
@@ -90,6 +116,27 @@ export default function Historial() {
             <div style={{ fontSize: 22, fontWeight: 800, color: s.color, margin: "4px 0" }}>{s.value}</div>
             <div style={{ fontSize: 12, color: "#64748b" }}>{s.label}</div>
           </div>
+        ))}
+      </div>
+
+      {/* Filtro por período */}
+      <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
+        {[
+          { id: "hoy",       label: "Hoy" },
+          { id: "semana",    label: "Semana" },
+          { id: "mes",       label: "Mes" },
+          { id: "trimestre", label: "Trimestre" },
+          { id: "semestre",  label: "Semestre" },
+          { id: "año",       label: "Año" },
+          { id: "total",     label: "Total" },
+        ].map(p => (
+          <button key={p.id} onClick={() => setFiltroPeriodo(p.id)} style={{
+            padding: "7px 14px", borderRadius: 8, border: "none",
+            cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "inherit",
+            background: filtroPeriodo === p.id ? "#6366f1" : "#fff",
+            color: filtroPeriodo === p.id ? "#fff" : "#64748b",
+            boxShadow: "0 1px 4px #00000010"
+          }}>{p.label}</button>
         ))}
       </div>
 
