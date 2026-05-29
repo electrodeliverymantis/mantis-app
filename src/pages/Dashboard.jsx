@@ -34,13 +34,13 @@ export default function Dashboard() {
   )
 
   const tarjetas = [
-    { etiqueta: "Total Órdenes",      valor: metricas.totalOrdenes,        icono: "📋", color: "#6366f1" },
-    { etiqueta: "Pendientes",         valor: metricas.pendientes,          icono: "⏳", color: "#f59e0b" },
-    { etiqueta: "En Proceso",         valor: metricas.enProceso,           icono: "🔧", color: "#8b5cf6" },
-    { etiqueta: "Resueltas",          valor: metricas.resueltas,           icono: "✅", color: "#10b981" },
-    { etiqueta: "Prev. Vencidos",     valor: metricas.preventivosVencidos, icono: "🔴", color: "#ef4444" },
+    { etiqueta: "Total Órdenes",  valor: metricas.totalOrdenes,        icono: "📋", color: "#6366f1" },
+    { etiqueta: "Pendientes",     valor: metricas.pendientes,          icono: "⏳", color: "#f59e0b" },
+    { etiqueta: "Agendadas",      valor: metricas.agendadas,           icono: "📅", color: "#3b82f6" },
+    { etiqueta: "En Proceso",     valor: metricas.enProceso,           icono: "🔧", color: "#8b5cf6" },
+    { etiqueta: "Resueltas",      valor: metricas.resueltas,           icono: "✅", color: "#10b981" },
+    { etiqueta: "Prev. Vencidos", valor: metricas.preventivosVencidos, icono: "🔴", color: "#ef4444" },
   ]
-
   return (
     <div>
       {/* Bienvenida */}

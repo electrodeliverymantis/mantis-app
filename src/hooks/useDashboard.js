@@ -30,13 +30,14 @@ export function useDashboard() {
 
       if (ordenes) {
         // Calcular métricas
-        setMetricas({
-          totalOrdenes: ordenes.length,
-          pendientes: ordenes.filter(o => o.estado === 'pendiente').length,
-          enProceso: ordenes.filter(o => o.estado === 'en_proceso').length,
-          resueltas: ordenes.filter(o => o.estado === 'resuelto').length,
-          preventivosVencidos: preventivos?.filter(p => p.estado === 'vencido').length || 0,
-        })
+      setMetricas({
+    totalOrdenes: ordenes.length,
+    pendientes: ordenes.filter(o => o.estado === 'pendiente').length,
+    agendadas: ordenes.filter(o => o.estado === 'agendado').length,
+    enProceso: ordenes.filter(o => o.estado === 'en_proceso').length,
+    resueltas: ordenes.filter(o => o.estado === 'resuelto').length,
+    preventivosVencidos: preventivos?.filter(p => p.estado === 'vencido').length || 0,
+})
 
         // Últimas 5 órdenes
         setOrdenesRecientes(ordenes.slice(0, 5))
