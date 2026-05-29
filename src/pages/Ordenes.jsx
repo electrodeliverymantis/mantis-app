@@ -1,0 +1,1 @@
+export default function Ordenes() { return <div><h2>Órdenes de Trabajo</h2></div> }
