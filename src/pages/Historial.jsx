@@ -1,4 +1,6 @@
 import { useState, useEffect } from 'react'
+import * as XLSX from 'xlsx'
+import { saveAs } from 'file-saver'
 import { supabase } from '../lib/supabase'
 
 const estadoConfig = {
@@ -48,7 +50,6 @@ export default function Historial() {
     cargar()
   }, [])
 
-  // Calcular métricas por orden
   const ordenesConMetricas = ordenes.map(o => {
     const hist = historial.filter(h => h.orden_id === o.id)
     return {
@@ -59,32 +60,21 @@ export default function Historial() {
     }
   })
 
-  // Totales generales
   const totalCosto = ordenesConMetricas.reduce((a, o) => a + o.costoTotal, 0)
   const totalTiempo = ordenesConMetricas.reduce((a, o) => a + o.tiempoTotal, 0)
   const totalResueltas = ordenes.filter(o => o.estado === 'resuelto').length
 
-  // Filtros
- const filtrarPorPeriodo = (fecha) => {
+  const filtrarPorPeriodo = (fecha) => {
     if (!fecha || filtroPeriodo === "total") return true
     const hoy = new Date()
     const fechaOrden = new Date(fecha)
     switch (filtroPeriodo) {
-      case "hoy":
-        return fechaOrden.toDateString() === hoy.toDateString()
-      case "semana":
-        const unaSemana = new Date(hoy); unaSemana.setDate(hoy.getDate() - 7)
-        return fechaOrden >= unaSemana
-      case "mes":
-        return fechaOrden.getMonth() === hoy.getMonth() && fechaOrden.getFullYear() === hoy.getFullYear()
-      case "trimestre":
-        const tresMeses = new Date(hoy); tresMeses.setMonth(hoy.getMonth() - 3)
-        return fechaOrden >= tresMeses
-      case "semestre":
-        const seisMeses = new Date(hoy); seisMeses.setMonth(hoy.getMonth() - 6)
-        return fechaOrden >= seisMeses
-      case "año":
-        return fechaOrden.getFullYear() === hoy.getFullYear()
+      case "hoy": return fechaOrden.toDateString() === hoy.toDateString()
+      case "semana": const unaSemana = new Date(hoy); unaSemana.setDate(hoy.getDate() - 7); return fechaOrden >= unaSemana
+      case "mes": return fechaOrden.getMonth() === hoy.getMonth() && fechaOrden.getFullYear() === hoy.getFullYear()
+      case "trimestre": const tresMeses = new Date(hoy); tresMeses.setMonth(hoy.getMonth() - 3); return fechaOrden >= tresMeses
+      case "semestre": const seisMeses = new Date(hoy); seisMeses.setMonth(hoy.getMonth() - 6); return fechaOrden >= seisMeses
+      case "año": return fechaOrden.getFullYear() === hoy.getFullYear()
       default: return true
     }
   }
@@ -98,20 +88,35 @@ export default function Historial() {
       o.descripcion?.toLowerCase().includes(busqueda.toLowerCase())
     )
 
+  const exportarExcel = () => {
+    const datos = ordenesFiltradas.map(o => ({
+      'N° OT': o.numero,
+      'Fecha': o.fecha,
+      'Parte': o.parte,
+      'Descripción': o.descripcion,
+      'Estado': estadoConfig[o.estado]?.etiqueta || o.estado,
+      'Tiempo (min)': o.tiempoTotal,
+      'Costo ($)': o.costoTotal,
+      'Repuestos': o.repuestos || '',
+    }))
+    const hoja = XLSX.utils.json_to_sheet(datos)
+    const libro = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(libro, hoja, 'Historial')
+    const buffer = XLSX.write(libro, { bookType: 'xlsx', type: 'array' })
+    saveAs(new Blob([buffer]), `historial-mantis-${new Date().toISOString().split('T')[0]}.xlsx`)
+  }
+
   return (
     <div>
       {/* Tarjetas resumen */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12, marginBottom: 24 }}>
         {[
-          { label: "Total Órdenes",  value: ordenes.length,                        icono: "📋", color: "#6366f1" },
-          { label: "Resueltas",      value: totalResueltas,                         icono: "✅", color: "#10b981" },
-          { label: "Costo total",    value: "$" + totalCosto.toLocaleString("es-AR"), icono: "💰", color: "#f59e0b" },
-          { label: "Tiempo total",   value: Math.round(totalTiempo / 60) + " hs",   icono: "⏱", color: "#8b5cf6" },
+          { label: "Total Órdenes",  value: ordenes.length,                           icono: "📋", color: "#6366f1" },
+          { label: "Resueltas",      value: totalResueltas,                            icono: "✅", color: "#10b981" },
+          { label: "Costo total",    value: "$" + totalCosto.toLocaleString("es-AR"),  icono: "💰", color: "#f59e0b" },
+          { label: "Tiempo total",   value: Math.round(totalTiempo / 60) + " hs",      icono: "⏱", color: "#8b5cf6" },
         ].map(s => (
-          <div key={s.label} style={{
-            background: "#fff", borderRadius: 14, padding: 18,
-            boxShadow: "0 1px 8px #00000010", textAlign: "center"
-          }}>
+          <div key={s.label} style={{ background: "#fff", borderRadius: 14, padding: 18, boxShadow: "0 1px 8px #00000010", textAlign: "center" }}>
             <div style={{ fontSize: 22 }}>{s.icono}</div>
             <div style={{ fontSize: 22, fontWeight: 800, color: s.color, margin: "4px 0" }}>{s.value}</div>
             <div style={{ fontSize: 12, color: "#64748b" }}>{s.label}</div>
@@ -122,13 +127,13 @@ export default function Historial() {
       {/* Filtro por período */}
       <div style={{ display: "flex", gap: 6, marginBottom: 12, flexWrap: "wrap" }}>
         {[
-          { id: "hoy",       label: "Hoy" },
-          { id: "semana",    label: "Semana" },
-          { id: "mes",       label: "Mes" },
+          { id: "hoy", label: "Hoy" },
+          { id: "semana", label: "Semana" },
+          { id: "mes", label: "Mes" },
           { id: "trimestre", label: "Trimestre" },
-          { id: "semestre",  label: "Semestre" },
-          { id: "año",       label: "Año" },
-          { id: "total",     label: "Total" },
+          { id: "semestre", label: "Semestre" },
+          { id: "año", label: "Año" },
+          { id: "total", label: "Total" },
         ].map(p => (
           <button key={p.id} onClick={() => setFiltroPeriodo(p.id)} style={{
             padding: "7px 14px", borderRadius: 8, border: "none",
@@ -140,27 +145,32 @@ export default function Historial() {
         ))}
       </div>
 
-      {/* Filtros y búsqueda */}
-      <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
-        <input type="text" value={busqueda} onChange={e => setBusqueda(e.target.value)}
-          placeholder="Buscar por número, parte o descripción..."
-          style={{
-            padding: "9px 12px", borderRadius: 8, border: "1.5px solid #e2e8f0",
-            fontSize: 13, outline: "none", fontFamily: "inherit", background: "#f8fafc", width: 280
-          }} />
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {["todos", "pendiente", "agendado", "en_proceso", "resuelto"].map(e => (
-            <button key={e} onClick={() => setFiltroEstado(e)} style={{
-              padding: "8px 12px", borderRadius: 8, border: "none",
-              cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "inherit",
-              background: filtroEstado === e ? "#0f172a" : "#fff",
-              color: filtroEstado === e ? "#fff" : "#64748b",
-              boxShadow: "0 1px 4px #00000010"
-            }}>
-              {e === "todos" ? "Todos" : estadoConfig[e]?.etiqueta}
-            </button>
-          ))}
+      {/* Filtros, búsqueda y exportar */}
+      <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+          <input type="text" value={busqueda} onChange={e => setBusqueda(e.target.value)}
+            placeholder="Buscar por número, parte o descripción..."
+            style={{ padding: "9px 12px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 13, outline: "none", fontFamily: "inherit", background: "#f8fafc", width: 280 }} />
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+            {["todos", "pendiente", "agendado", "en_proceso", "resuelto"].map(e => (
+              <button key={e} onClick={() => setFiltroEstado(e)} style={{
+                padding: "8px 12px", borderRadius: 8, border: "none",
+                cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "inherit",
+                background: filtroEstado === e ? "#0f172a" : "#fff",
+                color: filtroEstado === e ? "#fff" : "#64748b",
+                boxShadow: "0 1px 4px #00000010"
+              }}>
+                {e === "todos" ? "Todos" : estadoConfig[e]?.etiqueta}
+              </button>
+            ))}
+          </div>
         </div>
+        <button onClick={exportarExcel} style={{
+          padding: "9px 16px", borderRadius: 10, border: "none",
+          background: "linear-gradient(90deg,#10b981,#059669)",
+          color: "#fff", fontWeight: 700, fontSize: 13,
+          cursor: "pointer", fontFamily: "inherit"
+        }}>📥 Exportar Excel</button>
       </div>
 
       {/* Tabla historial */}
