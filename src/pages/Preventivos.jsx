@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { usePreventivos } from '../hooks/usePreventivos'
 import { useAuth } from '../context/AuthContext'
+import SubirImagen from '../components/SubirImagen'
 
 const SECTORES = ["Planta A", "Planta B", "Almacén", "Oficinas", "Línea 1", "Línea 2"]
 const MAQUINAS = {
@@ -58,6 +59,7 @@ export default function Preventivos() {
   const [frecuencia, setFrecuencia] = useState("Mensual")
   const [proximaFecha, setProximaFecha] = useState("")
   const [descripcion, setDescripcion] = useState("")
+  const [imagenUrl, setImagenUrl] = useState("")
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState("")
 
@@ -68,8 +70,15 @@ export default function Preventivos() {
     if (!titulo || !sector || !maquina || !proximaFecha) { setError("Completá todos los campos obligatorios"); return }
     setGuardando(true); setError("")
     try {
-      await crearPreventivo({ titulo, descripcion, frecuencia, proxima_fecha: proximaFecha, sector_id: null, maquina_id: null, estado: 'pendiente' })
-      setTitulo(""); setSector(""); setMaquina(""); setFrecuencia("Mensual"); setProximaFecha(""); setDescripcion("")
+      await crearPreventivo({
+        titulo, descripcion, frecuencia,
+        proxima_fecha: proximaFecha,
+        sector_id: null, maquina_id: null,
+        imagen_url: imagenUrl || null,
+        estado: 'pendiente'
+      })
+      setTitulo(""); setSector(""); setMaquina("")
+      setFrecuencia("Mensual"); setProximaFecha(""); setDescripcion(""); setImagenUrl("")
       setMostrarFormulario(false)
     } catch { setError("Error al crear el preventivo") }
     finally { setGuardando(false) }
@@ -132,6 +141,10 @@ export default function Preventivos() {
                 <h4 style={{ margin: "0 0 8px", fontSize: 14, fontWeight: 800, color: "#0f172a" }}>{p.titulo}</h4>
                 {p.descripcion && <p style={{ fontSize: 12, color: "#64748b", margin: "0 0 8px", lineHeight: 1.5 }}>{p.descripcion}</p>}
                 <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>📅 Próxima fecha: <strong>{p.proxima_fecha}</strong></div>
+                {p.imagen_url && (
+                  <img src={p.imagen_url} alt="preventivo" style={{ width: "100%", borderRadius: 8, maxHeight: 150, objectFit: "cover", marginBottom: 12, cursor: "pointer" }}
+                    onClick={() => window.open(p.imagen_url, '_blank')} />
+                )}
                 {isMant && (
                   <div style={{ display: "flex", gap: 8 }}>
                     <button onClick={() => soloRealizado(p.id)} style={{ flex: 1, padding: "8px", borderRadius: 8, border: "1px solid #10b98140", background: "#d1fae5", color: "#065f46", cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "inherit" }}>✅ Hecho</button>
@@ -187,6 +200,14 @@ export default function Preventivos() {
               <div style={{ marginBottom: 14 }}>
                 <label style={labelStyle}>Descripción de tareas</label>
                 <textarea value={descripcion} onChange={e => setDescripcion(e.target.value)} rows={3} placeholder="Describí las tareas a realizar..." style={{ ...inputStyle, resize: "vertical" }} />
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={labelStyle}>Imagen adjunta (opcional)</label>
+                <SubirImagen
+                  onImagenSubida={(url) => setImagenUrl(url || "")}
+                  imagenActual={imagenUrl}
+                  carpeta="preventivos"
+                />
               </div>
               {error && <div style={{ background: "#fee2e2", color: "#ef4444", borderRadius: 8, padding: "8px 12px", fontSize: 12, marginBottom: 14 }}>❌ {error}</div>}
               <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>

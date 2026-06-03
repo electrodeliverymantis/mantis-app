@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useOrdenes } from '../hooks/useOrdenes'
 import { useAuth } from '../context/AuthContext'
+import SubirImagen from '../components/SubirImagen'
 
 const SECTORES = ["Planta A", "Planta B", "Almacén", "Oficinas", "Línea 1", "Línea 2"]
 const MAQUINAS = {
@@ -47,7 +48,7 @@ const labelStyle = {
 }
 
 // ── DETALLE DE ORDEN ──────────────────────────────────────────
-function DetalleOrden({ orden, onVolver, actualizarEstado, cargarHistorial, isMant }) {
+function DetalleOrden({ orden, onVolver, actualizarEstado, cargarHistorial, isMant, canEdit }) {
   const [historial, setHistorial] = useState([])
   const [mostrarCambioEstado, setMostrarCambioEstado] = useState(false)
   const [nuevoEstado, setNuevoEstado] = useState("")
@@ -56,6 +57,7 @@ function DetalleOrden({ orden, onVolver, actualizarEstado, cargarHistorial, isMa
   const [repuestos, setRepuestos] = useState("")
   const [costo, setCosto] = useState("")
   const [fechaAgendada, setFechaAgendada] = useState("")
+  const [imagenEstado, setImagenEstado] = useState("")
   const [guardando, setGuardando] = useState(false)
 
   useEffect(() => {
@@ -72,13 +74,15 @@ function DetalleOrden({ orden, onVolver, actualizarEstado, cargarHistorial, isMa
         repuestos,
         costo: parseFloat(costo) || 0,
         fecha_agendada: fechaAgendada || null,
+        imagen_url: imagenEstado || null,
         fecha: new Date().toISOString(),
       })
       const nuevoHistorial = await cargarHistorial(orden.id)
       setHistorial(nuevoHistorial)
       orden.estado = nuevoEstado
       setMostrarCambioEstado(false)
-      setDescripcion(""); setTiempoMin(""); setRepuestos(""); setCosto(""); setFechaAgendada("")
+      setDescripcion(""); setTiempoMin(""); setRepuestos(""); setCosto("")
+      setFechaAgendada(""); setImagenEstado("")
     } catch (err) {
       alert("Error al cambiar estado")
     } finally {
@@ -98,8 +102,6 @@ function DetalleOrden({ orden, onVolver, actualizarEstado, cargarHistorial, isMa
       }}>← Volver a Órdenes</button>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 20, alignItems: "start" }}>
-
-        {/* Info principal */}
         <div>
           <div style={{ background: "#fff", borderRadius: 16, padding: 24, boxShadow: "0 1px 8px #00000010", marginBottom: 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
@@ -122,10 +124,15 @@ function DetalleOrden({ orden, onVolver, actualizarEstado, cargarHistorial, isMa
               ))}
             </div>
 
-            <div style={{ background: "#f8fafc", borderRadius: 10, padding: "14px 16px" }}>
+            <div style={{ background: "#f8fafc", borderRadius: 10, padding: "14px 16px", marginBottom: orden.imagen_url ? 12 : 0 }}>
               <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", marginBottom: 6 }}>📝 Descripción</div>
               <p style={{ margin: 0, fontSize: 14, color: "#374151", lineHeight: 1.6 }}>{orden.descripcion}</p>
             </div>
+
+            {orden.imagen_url && (
+              <img src={orden.imagen_url} alt="adjunto" style={{ width: "100%", borderRadius: 10, maxHeight: 250, objectFit: "cover", marginTop: 12, cursor: "pointer" }}
+                onClick={() => window.open(orden.imagen_url, '_blank')} />
+            )}
           </div>
 
           {/* Historial */}
@@ -157,6 +164,10 @@ function DetalleOrden({ orden, onVolver, actualizarEstado, cargarHistorial, isMa
                           {h.repuestos && <span style={{ fontSize: 11, background: "#ede9fe", color: "#6d28d9", borderRadius: 6, padding: "2px 8px" }}>🔩 {h.repuestos}</span>}
                           {h.costo > 0 && <span style={{ fontSize: 11, background: "#d1fae5", color: "#065f46", borderRadius: 6, padding: "2px 8px" }}>💰 ${parseFloat(h.costo).toLocaleString()}</span>}
                         </div>
+                        {h.imagen_url && (
+                          <img src={h.imagen_url} alt="foto estado" style={{ width: "100%", borderRadius: 8, maxHeight: 180, objectFit: "cover", marginTop: 8, cursor: "pointer" }}
+                            onClick={() => window.open(h.imagen_url, '_blank')} />
+                        )}
                       </div>
                     </div>
                   )
@@ -166,10 +177,8 @@ function DetalleOrden({ orden, onVolver, actualizarEstado, cargarHistorial, isMa
           </div>
         </div>
 
-        {/* Sidebar derecho */}
+        {/* Sidebar */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-
-          {/* Resumen */}
           <div style={{ background: "#fff", borderRadius: 16, padding: 20, boxShadow: "0 1px 8px #00000010" }}>
             <h4 style={{ margin: "0 0 14px", fontSize: 13, fontWeight: 700, color: "#0f172a" }}>📊 Resumen</h4>
             {[
@@ -183,8 +192,7 @@ function DetalleOrden({ orden, onVolver, actualizarEstado, cargarHistorial, isMa
             ))}
           </div>
 
-          {/* Cambiar estado — solo mantenimiento */}
-          {isMant && orden.estado !== "resuelto" && (
+          {isMant && canEdit && orden.estado !== "resuelto" && (
             <div style={{ background: "linear-gradient(135deg, #6366f1, #8b5cf6)", borderRadius: 16, padding: 20 }}>
               <h4 style={{ margin: "0 0 12px", fontSize: 13, fontWeight: 700, color: "#fff" }}>🔄 Cambiar Estado</h4>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -205,11 +213,8 @@ function DetalleOrden({ orden, onVolver, actualizarEstado, cargarHistorial, isMa
 
       {/* Modal cambio de estado */}
       {mostrarCambioEstado && (
-        <div style={{
-          position: "fixed", inset: 0, background: "#00000060", zIndex: 1000,
-          display: "flex", alignItems: "center", justifyContent: "center", padding: 16
-        }}>
-          <div style={{ background: "#fff", borderRadius: 20, width: "100%", maxWidth: 480, padding: 24, boxShadow: "0 24px 64px #00000040" }}>
+        <div style={{ position: "fixed", inset: 0, background: "#00000060", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
+          <div style={{ background: "#fff", borderRadius: 20, width: "100%", maxWidth: 480, maxHeight: "90vh", overflow: "auto", padding: 24, boxShadow: "0 24px 64px #00000040" }}>
             <h3 style={{ margin: "0 0 20px", fontSize: 16, fontWeight: 800, color: "#0f172a" }}>
               Cambiar a: {estadoConfig[nuevoEstado]?.icono} {estadoConfig[nuevoEstado]?.etiqueta}
             </h3>
@@ -239,10 +244,19 @@ function DetalleOrden({ orden, onVolver, actualizarEstado, cargarHistorial, isMa
               </div>
             </div>
 
-            <div style={{ marginBottom: 20 }}>
+            <div style={{ marginBottom: 14 }}>
               <label style={labelStyle}>Repuestos utilizados</label>
               <input type="text" value={repuestos} onChange={e => setRepuestos(e.target.value)}
-                placeholder="Ej: Rodamiento 6205 x2, Grasa SKF..." style={inputStyle} />
+                placeholder="Ej: Rodamiento 6205 x2..." style={inputStyle} />
+            </div>
+
+            <div style={{ marginBottom: 20 }}>
+              <label style={labelStyle}>Foto del trabajo (opcional)</label>
+              <SubirImagen
+                onImagenSubida={(url) => setImagenEstado(url || "")}
+                imagenActual={imagenEstado}
+                carpeta="estados"
+              />
             </div>
 
             <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
@@ -278,11 +292,13 @@ export default function Ordenes() {
   const [maquina, setMaquina] = useState("")
   const [parte, setParte] = useState("")
   const [descripcion, setDescripcion] = useState("")
+  const [imagenUrl, setImagenUrl] = useState("")
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState("")
 
   const puedeCrear = usuario?.role === 'produccion' || usuario?.role === 'admin'
   const isMant = usuario?.role === 'mantenimiento' || usuario?.role === 'admin'
+  const canEdit = usuario?.role !== 'visualizacion'
   const maquinasDisponibles = sector ? (MAQUINAS[sector] || []) : []
 
   const generarNumero = () => {
@@ -299,19 +315,21 @@ export default function Ordenes() {
         numero: generarNumero(),
         fecha: new Date().toISOString().split("T")[0],
         sector_id: null, maquina_id: null,
-        parte, descripcion, estado: "pendiente", solicitante_id: null,
+        parte, descripcion,
+        imagen_url: imagenUrl || null,
+        estado: "pendiente", solicitante_id: null,
       })
-      setSector(""); setMaquina(""); setParte(""); setDescripcion("")
+      setSector(""); setMaquina(""); setParte(""); setDescripcion(""); setImagenUrl("")
       setMostrarFormulario(false)
     } catch { setError("Error al crear la orden. Intentá de nuevo.") }
     finally { setGuardando(false) }
   }
 
-  // Si hay una orden seleccionada mostrar el detalle
   if (ordenSeleccionada) {
     const ordenActual = ordenes.find(o => o.id === ordenSeleccionada.id) || ordenSeleccionada
     return <DetalleOrden orden={ordenActual} onVolver={() => setOrdenSeleccionada(null)}
-      actualizarEstado={actualizarEstado} cargarHistorial={cargarHistorial} isMant={isMant} />
+      actualizarEstado={actualizarEstado} cargarHistorial={cargarHistorial}
+      isMant={isMant} canEdit={canEdit} />
   }
 
   const ordenesFiltradas = filtroEstado === "todos" ? ordenes : ordenes.filter(o => o.estado === filtroEstado)
@@ -359,7 +377,12 @@ export default function Ordenes() {
             <tbody>
               {ordenesFiltradas.map((o, i) => (
                 <tr key={o.id} style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
-                  <td style={{ padding: "12px 16px", fontSize: 13, fontWeight: 700, color: "#6366f1" }}>{o.numero}</td>
+                  <td style={{ padding: "12px 16px", fontSize: 13, fontWeight: 700, color: "#6366f1" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                      {o.numero}
+                      {o.imagen_url && <span title="Tiene imagen adjunta">📎</span>}
+                    </div>
+                  </td>
                   <td style={{ padding: "12px 16px", fontSize: 12, color: "#64748b" }}>{o.fecha}</td>
                   <td style={{ padding: "12px 16px", fontSize: 12 }}>{o.parte}</td>
                   <td style={{ padding: "12px 16px", fontSize: 12, color: "#64748b", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.descripcion}</td>
@@ -422,6 +445,14 @@ export default function Ordenes() {
                 <label style={labelStyle}>Descripción del problema</label>
                 <textarea value={descripcion} onChange={e => setDescripcion(e.target.value)} rows={4}
                   placeholder="Describa el problema o falla detectada..." style={{ ...inputStyle, resize: "vertical" }} />
+              </div>
+              <div style={{ marginBottom: 14 }}>
+                <label style={labelStyle}>Imagen adjunta (opcional)</label>
+                <SubirImagen
+                  onImagenSubida={(url) => setImagenUrl(url || "")}
+                  imagenActual={imagenUrl}
+                  carpeta="ordenes"
+                />
               </div>
               {error && <div style={{ background: "#fee2e2", color: "#ef4444", borderRadius: 8, padding: "8px 12px", fontSize: 12, marginBottom: 14 }}>❌ {error}</div>}
               <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
