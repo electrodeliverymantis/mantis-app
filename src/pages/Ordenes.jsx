@@ -288,6 +288,7 @@ export default function Ordenes() {
   const [ordenSeleccionada, setOrdenSeleccionada] = useState(null)
   const [mostrarFormulario, setMostrarFormulario] = useState(false)
   const [filtroEstado, setFiltroEstado] = useState("todos")
+  const [busqueda, setBusqueda] = useState("")
   const [sector, setSector] = useState("")
   const [maquina, setMaquina] = useState("")
   const [parte, setParte] = useState("")
@@ -332,8 +333,13 @@ export default function Ordenes() {
       isMant={isMant} canEdit={canEdit} />
   }
 
-  const ordenesFiltradas = filtroEstado === "todos" ? ordenes : ordenes.filter(o => o.estado === filtroEstado)
-
+const ordenesFiltradas = ordenes
+    .filter(o => filtroEstado === "todos" || o.estado === filtroEstado)
+    .filter(o => !busqueda ||
+      o.numero?.toLowerCase().includes(busqueda.toLowerCase()) ||
+      o.parte?.toLowerCase().includes(busqueda.toLowerCase()) ||
+      o.descripcion?.toLowerCase().includes(busqueda.toLowerCase())
+    )
   return (
     <div>
       <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap", alignItems: "center" }}>
@@ -344,6 +350,15 @@ export default function Ordenes() {
             fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit"
           }}>+ Nueva Orden de Trabajo</button>
         )}
+        <input
+          type="text" value={busqueda} onChange={e => setBusqueda(e.target.value)}
+          placeholder="🔍 Buscar por número, parte o descripción..."
+          style={{
+            padding: "9px 14px", borderRadius: 8, border: "1.5px solid #e2e8f0",
+            fontSize: 13, outline: "none", fontFamily: "inherit",
+            background: "#fff", width: 300
+          }}
+        />
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           {["todos", "pendiente", "agendado", "en_proceso", "espera_mat", "resuelto"].map(e => (
             <button key={e} onClick={() => setFiltroEstado(e)} style={{
