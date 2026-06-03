@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useOrdenes } from '../hooks/useOrdenes'
 import { useAuth } from '../context/AuthContext'
 import SubirImagen from '../components/SubirImagen'
+import Chat from '../components/Chat'
 
 const SECTORES = ["Planta A", "Planta B", "Almacén", "Oficinas", "Línea 1", "Línea 2"]
 const MAQUINAS = {
@@ -48,8 +49,8 @@ const labelStyle = {
 }
 
 // ── DETALLE DE ORDEN ──────────────────────────────────────────
-function DetalleOrden({ orden, onVolver, actualizarEstado, cargarHistorial, isMant, canEdit }) {
-  const [historial, setHistorial] = useState([])
+function DetalleOrden({ orden, onVolver, actualizarEstado, cargarHistorial, isMant, canEdit, usuarioNombre }) {
+const [historial, setHistorial] = useState([])
   const [mostrarCambioEstado, setMostrarCambioEstado] = useState(false)
   const [nuevoEstado, setNuevoEstado] = useState("")
   const [descripcion, setDescripcion] = useState("")
@@ -176,7 +177,7 @@ function DetalleOrden({ orden, onVolver, actualizarEstado, cargarHistorial, isMa
             )}
           </div>
         </div>
-
+<Chat ordenId={orden.id} usuarioNombre={orden.solicitante_id || "Usuario"} />
         {/* Sidebar */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <div style={{ background: "#fff", borderRadius: 16, padding: 20, boxShadow: "0 1px 8px #00000010" }}>
@@ -330,7 +331,8 @@ export default function Ordenes() {
     const ordenActual = ordenes.find(o => o.id === ordenSeleccionada.id) || ordenSeleccionada
     return <DetalleOrden orden={ordenActual} onVolver={() => setOrdenSeleccionada(null)}
       actualizarEstado={actualizarEstado} cargarHistorial={cargarHistorial}
-      isMant={isMant} canEdit={canEdit} />
+      isMant={isMant} canEdit={canEdit}
+      usuarioNombre={usuario?.nombre || usuario?.name || usuario?.email} />
   }
 
 const ordenesFiltradas = ordenes
