@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { supabase } from './lib/supabase'
 import { loginUser } from './auth'
+import Registro from './pages/Registro'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import Layout from './components/Layout'
 import Dashboard from './pages/Dashboard'
@@ -11,7 +12,7 @@ import Proveedores from './pages/Proveedores'
 import Usuarios from './pages/Usuarios'
 
 // ── PANTALLA DE LOGIN ──────────────────────────────────────────
-function PantallaLogin() {
+function PantallaLogin({ onRegistro }) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [error, setError] = useState("")
@@ -78,6 +79,14 @@ function PantallaLogin() {
             fontFamily: "inherit"
           }}>
             {cargando ? "Ingresando..." : "Ingresar →"}
+            <button onClick={onRegistro} style={{
+            width: "100%", marginTop: 10, padding: "11px",
+            borderRadius: 10, border: "1px solid #ffffff15",
+            background: "transparent", color: "#94a3b8",
+            fontSize: 13, cursor: "pointer", fontFamily: "inherit"
+          }}>
+            ¿No tenés cuenta? Solicitá acceso →
+          </button>
           </button>
         </div>
       </div>
@@ -89,18 +98,17 @@ function PantallaLogin() {
 function AppContenido() {
   const { usuario, cargando } = useAuth()
   const [vistaActual, setVistaActual] = useState("dashboard")
+  const [mostrarRegistro, setMostrarRegistro] = useState(false)
 
-  // Pantalla de carga mientras verifica sesión
   if (cargando) return (
     <div style={{ minHeight: "100vh", background: "#0f172a", display: "flex", alignItems: "center", justifyContent: "center" }}>
       <div style={{ color: "#6366f1", fontSize: 18, fontWeight: 700 }}>⚙ Cargando MANTIS...</div>
     </div>
   )
 
-  // Si no hay usuario logueado, mostrar login
-  if (!usuario) return <PantallaLogin />
+  if (mostrarRegistro) return <Registro onVolver={() => setMostrarRegistro(false)} />
+  if (!usuario) return <PantallaLogin onRegistro={() => setMostrarRegistro(true)} />
 
-  // Renderizar la página según la vista activa
   const renderPagina = () => {
     switch (vistaActual) {
       case "dashboard":   return <Dashboard />
