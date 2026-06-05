@@ -10,6 +10,7 @@ import Preventivos from './pages/Preventivos'
 import Historial from './pages/Historial'
 import Proveedores from './pages/Proveedores'
 import Usuarios from './pages/Usuarios'
+import Infraestructura from './pages/Infraestructura'
 
 // ── PANTALLA DE LOGIN ──────────────────────────────────────────
 function PantallaLogin({ onRegistro }) {
@@ -115,6 +116,7 @@ function AppContenido() {
       case "ordenes":     return <Ordenes />
       case "preventivos": return <Preventivos />
       case "historial":   return <Historial />
+      case "infraestructura": return <Infraestructura />
       case "proveedores": return <Proveedores />
       case "usuarios":    return <Usuarios />
       default:            return <Dashboard />
