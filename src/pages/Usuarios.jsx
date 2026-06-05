@@ -86,9 +86,18 @@ export default function Usuarios() {
     cargarDatos()
   }
 
-  const handleAprobarSolicitud = async (solicitud, rolAprobado) => {
+ const handleAprobarSolicitud = async (solicitud, rolAprobado) => {
     try {
-      // Crear usuario
+      // 1. Crear el usuario en Supabase Auth
+      const { data: authData, error: authError } = await supabase.auth.admin
+        ? await supabase.auth.signUp({
+            email: solicitud.email,
+            password: 'Mantis2026!', // contraseña temporal
+            options: { emailRedirectTo: undefined }
+          })
+        : { data: null, error: null }
+
+      // 2. Crear el perfil en la tabla usuarios
       await supabase.from('usuarios').insert([{
         nombre: solicitud.nombre,
         apellido: solicitud.apellido,
@@ -96,10 +105,13 @@ export default function Usuarios() {
         rol: rolAprobado,
         activo: true
       }])
-      // Marcar solicitud como aprobada
+
+      // 3. Marcar solicitud como aprobada
       await supabase.from('solicitudes_acceso')
         .update({ estado: 'aprobado' }).eq('id', solicitud.id)
+
       cargarDatos()
+      alert(`✅ Usuario aprobado. Contraseña temporal: Mantis2026!\nEl usuario deberá cambiarla al ingresar.`)
     } catch (error) {
       console.error('Error aprobando:', error)
     }
