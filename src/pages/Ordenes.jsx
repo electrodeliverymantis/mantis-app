@@ -16,13 +16,13 @@ const MAQUINAS = {
 const PARTES = ["Motor principal", "Sistema hidráulico", "Panel eléctrico", "Rodamientos", "Correas", "Filtros", "Bomba", "Válvulas", "Sensores", "Estructura"]
 
 const estadoConfig = {
-  pendiente:         { etiqueta: "Pendiente",        color: "#f59e0b", bg: "#fef3c7", icono: "⏳" },
-  agendado:          { etiqueta: "Agendado",         color: "#3b82f6", bg: "#dbeafe", icono: "📅" },
-  en_proceso:        { etiqueta: "En Proceso",       color: "#8b5cf6", bg: "#ede9fe", icono: "🔧" },
-  espera_mat:        { etiqueta: "Esp. Materiales",  color: "#f97316", bg: "#ffedd5", icono: "📦" },
-  espera_definicion: { etiqueta: "Esp. Definición",  color: "#0891b2", bg: "#ecfeff", icono: "🤔" },
-  espera_respuesta:  { etiqueta: "Esp. Respuesta",   color: "#7c3aed", bg: "#f5f3ff", icono: "💬" },
-  resuelto:          { etiqueta: "Resuelto",         color: "#10b981", bg: "#d1fae5", icono: "✅" },
+  pendiente:         { etiqueta: "Pendiente",       color: "#f59e0b", bg: "#fef3c7", icono: "⏳" },
+  agendado:          { etiqueta: "Agendado",        color: "#3b82f6", bg: "#dbeafe", icono: "📅" },
+  en_proceso:        { etiqueta: "En Proceso",      color: "#8b5cf6", bg: "#ede9fe", icono: "🔧" },
+  espera_mat:        { etiqueta: "Esp. Materiales", color: "#f97316", bg: "#ffedd5", icono: "📦" },
+  espera_definicion: { etiqueta: "Esp. Definición", color: "#0891b2", bg: "#ecfeff", icono: "🤔" },
+  espera_respuesta:  { etiqueta: "Esp. Respuesta",  color: "#7c3aed", bg: "#f5f3ff", icono: "💬" },
+  resuelto:          { etiqueta: "Resuelto",        color: "#10b981", bg: "#d1fae5", icono: "✅" },
 }
 
 function BadgeEstado({ estado }) {
@@ -54,7 +54,11 @@ function DetalleOrden({ orden, onVolver, actualizarEstado, cargarHistorial, isMa
   useEffect(() => { cargarHistorial(orden.id).then(setHistorial) }, [orden.id])
 
   const abrirModal = (estado) => { setNuevoEstado(estado); setMostrarModal(true) }
-  const cerrarModal = () => { setMostrarModal(false); setNuevoEstado(""); setDescripcion(""); setTiempoMin(""); setRepuestos(""); setCosto(""); setFechaAgendada(""); setImagenEstado(""); setUbicacion(null) }
+  const cerrarModal = () => {
+    setMostrarModal(false); setNuevoEstado(""); setDescripcion("")
+    setTiempoMin(""); setRepuestos(""); setCosto("")
+    setFechaAgendada(""); setImagenEstado(""); setUbicacion(null)
+  }
 
   const handleGuardar = async () => {
     if (!nuevoEstado || !descripcion) return
@@ -92,7 +96,7 @@ function DetalleOrden({ orden, onVolver, actualizarEstado, cargarHistorial, isMa
         if (d.display_name) dir = d.display_name.split(',').slice(0, 3).join(',').trim()
       } catch {}
       setUbicacion({ latitud: latitude, longitud: longitude, direccion: dir })
-    } catch { alert("No se pudo obtener la ubicación. Verificá los permisos del navegador.") }
+    } catch { alert("No se pudo obtener la ubicación.") }
     finally { setCapturandoUbicacion(false) }
   }
 
@@ -109,6 +113,7 @@ function DetalleOrden({ orden, onVolver, actualizarEstado, cargarHistorial, isMa
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: 20, alignItems: "start" }}>
         <div>
+          {/* Info de la orden */}
           <div style={{ background: "#fff", borderRadius: 16, padding: 24, boxShadow: "0 1px 8px #00000010", marginBottom: 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
               <div>
@@ -129,38 +134,107 @@ function DetalleOrden({ orden, onVolver, actualizarEstado, cargarHistorial, isMa
               <div style={{ fontSize: 11, color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", marginBottom: 6 }}>📝 Descripción</div>
               <p style={{ margin: 0, fontSize: 14, color: "#374151", lineHeight: 1.6 }}>{orden.descripcion}</p>
             </div>
-            {orden.imagen_url && <img src={orden.imagen_url} alt="adjunto" style={{ width: "100%", borderRadius: 10, maxHeight: 250, objectFit: "cover", marginTop: 12, cursor: "pointer" }} onClick={() => window.open(orden.imagen_url, '_blank')} />}
+            {orden.imagen_url && (
+              <img src={orden.imagen_url} alt="adjunto" style={{ width: "100%", borderRadius: 10, maxHeight: 250, objectFit: "cover", marginTop: 12, cursor: "pointer" }}
+                onClick={() => window.open(orden.imagen_url, '_blank')} />
+            )}
           </div>
 
+          {/* Timeline */}
           <div style={{ background: "#fff", borderRadius: 16, padding: 24, boxShadow: "0 1px 8px #00000010" }}>
-            <h3 style={{ margin: "0 0 20px", fontSize: 15, fontWeight: 800, color: "#0f172a" }}>📅 Historial de Estados</h3>
-            {historial.length === 0 ? <p style={{ color: "#94a3b8", fontSize: 13 }}>No hay historial todavía</p> : (
-              <div style={{ position: "relative" }}>
-                <div style={{ position: "absolute", left: 19, top: 0, bottom: 0, width: 2, background: "#e2e8f0" }} />
-                {historial.map((h, i) => {
-                  const cfg = estadoConfig[h.estado] || { bg: "#f1f5f9", color: "#94a3b8", icono: "•" }
+            <h3 style={{ margin: "0 0 24px", fontSize: 15, fontWeight: 800, color: "#0f172a" }}>📅 Línea de Tiempo</h3>
+            {historial.length === 0 ? (
+              <div style={{ position: "relative", paddingLeft: 32 }}>
+  <div style={{ position: "absolute", left: 15, top: 0, bottom: 0, width: 2, background: "linear-gradient(180deg, #6366f1, #e2e8f0)" }} />
+  <div style={{ position: "relative" }}>
+    <div style={{ position: "absolute", left: -25, top: 4, width: 20, height: 20, borderRadius: "50%", background: "#6366f1", border: "2px solid #6366f1", zIndex: 1 }} />
+    <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 12, padding: "14px 16px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+        <span style={{ background: "#f1f5f9", color: "#475569", border: "1px solid #e2e8f0", borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 700 }}>📋 Orden Creada</span>
+        <div style={{ textAlign: "right" }}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>
+            {new Date(new Date(orden.created_at || orden.fecha).getTime() - (3 * 60 * 60 * 1000)).toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}
+          </div>
+          <div style={{ fontSize: 11, color: "#94a3b8" }}>
+            {new Date(new Date(orden.created_at || orden.fecha).getTime() - (3 * 60 * 60 * 1000)).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}hs
+          </div>
+        </div>
+      </div>
+      <p style={{ margin: "6px 0 0", fontSize: 13, color: "#64748b" }}>Esperando intervención de mantenimiento</p>
+    </div>
+  </div>
+</div>
+            ) : (
+              <div style={{ position: "relative", paddingLeft: 32 }}>
+                <div style={{ position: "absolute", left: 15, top: 0, bottom: 0, width: 2, background: "linear-gradient(180deg, #6366f1, #e2e8f0)" }} />
+                <div style={{ position: "relative", marginBottom: 28 }}>
+    <div style={{ position: "absolute", left: -25, top: 4, width: 20, height: 20, borderRadius: "50%", background: "#fff", border: "2px solid #6366f1", zIndex: 1 }} />
+    <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 12, padding: "14px 16px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+        <span style={{ background: "#f1f5f9", color: "#475569", border: "1px solid #e2e8f0", borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 700 }}>📋 Orden Creada</span>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>
+          {new Date(new Date(orden.created_at || orden.fecha).getTime() - (3 * 60 * 60 * 1000)).toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}
+<div style={{ fontSize: 11, color: "#94a3b8" }}>
+  {new Date(new Date(orden.created_at || orden.fecha).getTime() - (3 * 60 * 60 * 1000)).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}hs
+</div>
+        </div>
+      </div>
+      <p style={{ margin: "6px 0 0", fontSize: 13, color: "#64748b" }}>Solicitante: {orden.solicitante_id || "Sistema"}</p>
+    </div>
+  </div>
+
+  {historial.map((h, i) => {
+                  const cfg = estadoConfig[h.estado] || { bg: "#f1f5f9", color: "#94a3b8", icono: "•", etiqueta: h.estado }
+                  const fecha = new Date(new Date(h.fecha).getTime() - (3 * 60 * 60 * 1000))
+                  const fechaAR = fecha
+                  const esUltimo = i === historial.length - 1
                   return (
-                    <div key={i} style={{ display: "flex", gap: 16, marginBottom: 16, position: "relative" }}>
-                      <div style={{ width: 40, height: 40, borderRadius: "50%", flexShrink: 0, background: cfg.bg, border: `2px solid ${cfg.color}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, zIndex: 1 }}>{cfg.icono}</div>
-                      <div style={{ flex: 1, background: "#f8fafc", borderRadius: 10, padding: "12px 14px" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                    <div key={i} style={{ position: "relative", marginBottom: esUltimo ? 0 : 28 }}>
+                      <div style={{
+                        position: "absolute", left: -25, top: 4,
+                        width: 20, height: 20, borderRadius: "50%",
+                        background: esUltimo ? cfg.color : "#fff",
+                        border: `2px solid ${cfg.color}`,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 10, zIndex: 1,
+                        boxShadow: esUltimo ? `0 0 0 4px ${cfg.color}20` : "none"
+                      }}>
+                        {esUltimo ? "✓" : ""}
+                      </div>
+                      <div style={{
+                        background: esUltimo ? cfg.bg : "#f8fafc",
+                        border: `1px solid ${esUltimo ? cfg.color + "40" : "#e2e8f0"}`,
+                        borderRadius: 12, padding: "14px 16px",
+                        boxShadow: esUltimo ? `0 2px 12px ${cfg.color}15` : "none"
+                      }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                           <BadgeEstado estado={h.estado} />
-                          <span style={{ fontSize: 11, color: "#94a3b8" }}>{new Date(h.fecha).toLocaleString("es-AR")}</span>
+                          <div style={{ textAlign: "right" }}>
+                            <div style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>
+                              {fecha.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Argentina/Buenos_Aires" })}
+                            </div>
+                            <div style={{ fontSize: 11, color: "#94a3b8" }}>
+                              {fecha.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "America/Argentina/Buenos_Aires" })}hs
+                            </div>
+                          </div>
                         </div>
-                        <p style={{ margin: "6px 0 4px", fontSize: 13, color: "#374151" }}>{h.descripcion}</p>
-                        {h.fecha_agendada && <div style={{ fontSize: 11, color: "#3b82f6" }}>📅 Agendado para: {h.fecha_agendada}</div>}
-                        <div style={{ display: "flex", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+                        {h.descripcion && <p style={{ margin: "0 0 8px", fontSize: 13, color: "#374151", lineHeight: 1.5 }}>{h.descripcion}</p>}
+                        {h.fecha_agendada && <div style={{ fontSize: 11, color: "#3b82f6", marginBottom: 6 }}>📅 Agendado para: {h.fecha_agendada}</div>}
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
                           {h.tiempo_min > 0 && <span style={{ fontSize: 11, background: "#dbeafe", color: "#1d4ed8", borderRadius: 6, padding: "2px 8px" }}>⏱ {h.tiempo_min} min</span>}
                           {h.repuestos && <span style={{ fontSize: 11, background: "#ede9fe", color: "#6d28d9", borderRadius: 6, padding: "2px 8px" }}>🔩 {h.repuestos}</span>}
                           {h.costo > 0 && <span style={{ fontSize: 11, background: "#d1fae5", color: "#065f46", borderRadius: 6, padding: "2px 8px" }}>💰 ${parseFloat(h.costo).toLocaleString()}</span>}
                         </div>
                         {h.latitud && h.longitud && (
                           <a href={`https://www.google.com/maps?q=${h.latitud},${h.longitud}`} target="_blank" rel="noopener noreferrer"
-                            style={{ fontSize: 11, background: "#dbeafe", color: "#1d4ed8", borderRadius: 6, padding: "2px 8px", textDecoration: "none", display: "inline-block", marginTop: 4 }}>
+                            style={{ fontSize: 11, background: "#dbeafe", color: "#1d4ed8", borderRadius: 6, padding: "2px 8px", textDecoration: "none", display: "inline-block", marginTop: 6 }}>
                             📍 {h.direccion || "Ver en Maps"}
                           </a>
                         )}
-                        {h.imagen_url && <img src={h.imagen_url} alt="foto" style={{ width: "100%", borderRadius: 8, maxHeight: 180, objectFit: "cover", marginTop: 8, cursor: "pointer" }} onClick={() => window.open(h.imagen_url, '_blank')} />}
+                        {h.imagen_url && (
+                          <img src={h.imagen_url} alt="foto" style={{ width: "100%", borderRadius: 8, maxHeight: 180, objectFit: "cover", marginTop: 8, cursor: "pointer" }}
+                            onClick={() => window.open(h.imagen_url, '_blank')} />
+                        )}
                       </div>
                     </div>
                   )
@@ -170,6 +244,7 @@ function DetalleOrden({ orden, onVolver, actualizarEstado, cargarHistorial, isMa
           </div>
         </div>
 
+        {/* Sidebar */}
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
           <Chat ordenId={orden.id} usuarioNombre={orden.solicitante_id || "Usuario"} />
           <div style={{ background: "#fff", borderRadius: 16, padding: 20, boxShadow: "0 1px 8px #00000010" }}>
@@ -197,10 +272,10 @@ function DetalleOrden({ orden, onVolver, actualizarEstado, cargarHistorial, isMa
         </div>
       </div>
 
+      {/* Modal cambio de estado */}
       {mostrarModal && (
         <div style={{ position: "fixed", inset: 0, background: "#00000060", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
           <div style={{ background: "#fff", borderRadius: 20, width: "100%", maxWidth: 480, maxHeight: "90vh", overflow: "auto", padding: 24, boxShadow: "0 24px 64px #00000040" }}>
-
             <h3 style={{ margin: "0 0 20px", fontSize: 16, fontWeight: 800, color: "#0f172a" }}>
               Cambiar a: {estadoConfig[nuevoEstado]?.icono} {estadoConfig[nuevoEstado]?.etiqueta}
             </h3>
@@ -233,7 +308,7 @@ function DetalleOrden({ orden, onVolver, actualizarEstado, cargarHistorial, isMa
               <input type="text" value={repuestos} onChange={e => setRepuestos(e.target.value)} placeholder="Ej: Rodamiento 6205 x2..." style={inputStyle} />
             </div>
 
-            {true && (
+            {mostrarGeo && (
               <div style={{ marginBottom: 14 }}>
                 <label style={labelStyle}>📍 Ubicación (opcional)</label>
                 {!ubicacion ? (
