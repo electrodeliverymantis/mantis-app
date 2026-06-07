@@ -13,6 +13,7 @@ const menuItems = [
   { id: "ordenes",         etiqueta: "Órdenes de Trabajo",        icono: "📋", roles: ["admin","produccion","mantenimiento","visualizacion"] },
   { id: "preventivos",     etiqueta: "Preventivos",               icono: "🛡", roles: ["admin","mantenimiento","visualizacion"] },
   { id: "infraestructura", etiqueta: "Infraestructura y Seguridad", icono: "🏛", roles: ["admin","mantenimiento","visualizacion"] },
+  { id: "inventario", etiqueta: "Inventario", icono: "📦", roles: ["admin","mantenimiento","visualizacion"] },
   { id: "historial",       etiqueta: "Historial",                 icono: "📁", roles: ["admin","mantenimiento","visualizacion"] },
   { id: "proveedores",     etiqueta: "Proveedores",               icono: "🏢", roles: ["admin","mantenimiento","visualizacion"] },
   { id: "usuarios",        etiqueta: "Usuarios",                  icono: "👥", roles: ["admin"] },
