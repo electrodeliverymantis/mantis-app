@@ -3,6 +3,7 @@ import { useOrdenes } from '../hooks/useOrdenes'
 import { useAuth } from '../context/AuthContext'
 import SubirImagen from '../components/SubirImagen'
 import Chat from '../components/Chat'
+import { enviarEmail, templateCambioEstado, templateNuevaOrden } from '../lib/email'
 
 const SECTORES = ["Planta A", "Planta B", "Almacén", "Oficinas", "Línea 1", "Línea 2"]
 const MAQUINAS = {
@@ -79,6 +80,19 @@ function DetalleOrden({ orden, onVolver, actualizarEstado, cargarHistorial, isMa
       const nuevo = await cargarHistorial(orden.id)
       setHistorial(nuevo)
       orden.estado = nuevoEstado
+      // Notificación email al cambiar estado
+try {
+  await enviarEmail({
+    para: "electrodeliverycomercial@gmail.com", // temporal - después se configura por empresa
+    asunto: `MANTIS — ${orden.numero} cambió a ${nuevoEstado.replace('_',' ')}`,
+    html: templateCambioEstado({
+      numeroOrden: orden.numero,
+      estado: nuevoEstado,
+      descripcion: descripcion,
+      empresa: "Mi Empresa"
+    })
+  })
+} catch (e) { console.log("Email no enviado:", e) }
       cerrarModal()
     } catch { alert("Error al cambiar estado") }
     finally { setGuardando(false) }
@@ -372,7 +386,20 @@ export default function Ordenes() {
     setGuardando(true); setError("")
     try {
       await crearOrden({ numero: generarNumero(), fecha: new Date().toISOString().split("T")[0], sector_id: null, maquina_id: null, parte, descripcion, imagen_url: imagenUrl || null, estado: "pendiente", solicitante_id: null })
-      setSector(""); setMaquina(""); setParte(""); setDescripcion(""); setImagenUrl(""); setMostrarFormulario(false)
+        setSector(""); setMaquina(""); setParte(""); setDescripcion(""); setImagenUrl("")
+try {
+  await enviarEmail({
+    para: "electrodeliverycomercial@gmail.com",
+    asunto: `MANTIS — Nueva orden creada`,
+    html: templateNuevaOrden({
+      numeroOrden: generarNumero(),
+      parte: parte,
+      descripcion: descripcion,
+      empresa: "Mi Empresa"
+    })
+  })
+} catch (e) { console.log("Email no enviado:", e) }
+setMostrarFormulario(false)
     } catch { setError("Error al crear la orden.") }
     finally { setGuardando(false) }
   }
