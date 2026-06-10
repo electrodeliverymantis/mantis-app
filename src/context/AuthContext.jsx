@@ -9,21 +9,55 @@ export function AuthProvider({ children }) {
   const [usuario, setUsuario] = useState(null)
   const [cargando, setCargando] = useState(true)
 
+  const cargarPerfil = async (session) => {
+    if (!session?.user) { setUsuario(null); setCargando(false); return }
+    try {
+      const { data, error } = await supabase
+        .from('usuarios')
+        .select('*')
+        .eq('email', session.user.email)
+        .limit(1)
+
+      const perfil = data?.[0]
+      console.log('PERFIL:', perfil)
+
+      if (error || !perfil) {
+        setUsuario({
+          name: session.user.email,
+          nombre: session.user.email,
+          email: session.user.email,
+          role: 'admin',
+          rol: 'admin',
+          es_superadmin: false
+        })
+      } else {
+        setUsuario({
+          ...perfil,
+          name: `${perfil.nombre} ${perfil.apellido || ''}`.trim(),
+          role: perfil.es_superadmin ? 'superadmin' : perfil.rol,
+          rol: perfil.es_superadmin ? 'superadmin' : perfil.rol,
+        })
+      }
+    } catch(e) {
+      console.error('Error cargando perfil:', e)
+      setUsuario({
+        name: session.user.email,
+        email: session.user.email,
+        role: 'admin',
+        rol: 'admin',
+        es_superadmin: false
+      })
+    }
+    setCargando(false)
+  }
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        setUsuario({ name: session.user.email, email: session.user.email, role: 'admin' })
-      }
-      setCargando(false)
+      cargarPerfil(session)
     })
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((evento, session) => {
-      if (session?.user) {
-        setUsuario({ name: session.user.email, email: session.user.email, role: 'admin' })
-      } else {
-        setUsuario(null)
-      }
-      setCargando(false)
+      cargarPerfil(session)
     })
 
     return () => subscription.unsubscribe()

@@ -12,6 +12,7 @@ import Proveedores from './pages/Proveedores'
 import Usuarios from './pages/Usuarios'
 import Infraestructura from './pages/Infraestructura'
 import Inventario from './pages/Inventario'
+import SuperAdmin from './pages/SuperAdmin'
 
 // ── PANTALLA DE LOGIN ──────────────────────────────────────────
 function PantallaLogin({ onRegistro }) {
@@ -119,6 +120,7 @@ function AppContenido() {
       case "historial":   return <Historial />
       case "infraestructura": return <Infraestructura />
       case "inventario": return <Inventario />
+      case "superadmin": console.log("RENDERIZANDO SUPERADMIN"); return <SuperAdmin />
       case "proveedores": return <Proveedores />
       case "usuarios":    return <Usuarios />
       default:            return <Dashboard />
