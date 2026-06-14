@@ -1,32 +1,39 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { supabase } from '../lib/supabase'
 
 export default function Registro({ onVolver }) {
-  const [empresas, setEmpresas] = useState([])
   const [form, setForm] = useState({
     nombre: "", apellido: "", email: "", password: "",
-    empresa_id: "", rol_solicitado: "produccion"
+    codigo_empresa: "", rol_solicitado: "produccion"
   })
   const [enviando, setEnviando] = useState(false)
   const [enviado, setEnviado] = useState(false)
   const [error, setError] = useState("")
 
-  useEffect(() => {
-    supabase.from('empresas').select('id, nombre').eq('activa', true)
-      .then(({ data }) => setEmpresas(data || []))
-  }, [])
-
   const handleRegistro = async () => {
-    if (!form.nombre || !form.apellido || !form.email || !form.password || !form.empresa_id) {
+    if (!form.nombre || !form.apellido || !form.email || !form.password || !form.codigo_empresa) {
       setError("Completá todos los campos"); return
     }
     setEnviando(true); setError("")
     try {
+      const { data: empresa, error: errEmpresa } = await supabase
+        .from('empresas')
+        .select('id, nombre')
+        .eq('codigo_invitacion', form.codigo_empresa.trim().toUpperCase())
+        .eq('activa', true)
+        .single()
+
+      if (errEmpresa || !empresa) {
+        setError("Código de empresa inválido. Verificá el código con tu administrador.")
+        setEnviando(false); return
+      }
+
       const { error } = await supabase.from('solicitudes_acceso').insert([{
-        empresa_id: form.empresa_id,
+        empresa_id: empresa.id,
         nombre: form.nombre,
         apellido: form.apellido,
         email: form.email,
+        password: form.password,        // ← esto es lo que faltaba
         rol_solicitado: form.rol_solicitado,
         estado: 'pendiente'
       }])
@@ -83,11 +90,16 @@ export default function Registro({ onVolver }) {
             <input value={form.password} onChange={e => setForm({...form, password: e.target.value})} type="password" placeholder="••••••••" style={inputStyle} />
           </div>
           <div style={{ marginBottom: 14 }}>
-            <label style={labelStyle}>EMPRESA *</label>
-            <select value={form.empresa_id} onChange={e => setForm({...form, empresa_id: e.target.value})} style={inputStyle}>
-              <option value="">Seleccionar empresa...</option>
-              {empresas.map(e => <option key={e.id} value={e.id}>{e.nombre}</option>)}
-            </select>
+            <label style={labelStyle}>CÓDIGO DE EMPRESA *</label>
+            <input
+              value={form.codigo_empresa}
+              onChange={e => setForm({...form, codigo_empresa: e.target.value})}
+              placeholder="Ej: FRIGORIFICO01"
+              style={{...inputStyle, textTransform: "uppercase", letterSpacing: 2}}
+            />
+            <span style={{ color: "#475569", fontSize: 11, marginTop: 4, display: "block" }}>
+              Tu administrador te proporcionó este código
+            </span>
           </div>
           <div style={{ marginBottom: 20 }}>
             <label style={labelStyle}>ROL QUE SOLICITÁS</label>
@@ -99,7 +111,7 @@ export default function Registro({ onVolver }) {
           </div>
           {error && <div style={{ background: "#ef444420", color: "#ef4444", borderRadius: 8, padding: "8px 12px", fontSize: 12, marginBottom: 14 }}>❌ {error}</div>}
           <button onClick={handleRegistro} disabled={enviando} style={{ width: "100%", padding: "13px", borderRadius: 10, border: "none", background: enviando ? "#4b5563" : "linear-gradient(90deg,#6366f1,#8b5cf6)", color: "#fff", fontWeight: 800, fontSize: 15, cursor: enviando ? "not-allowed" : "pointer", fontFamily: "inherit", marginBottom: 12 }}>
-            {enviando ? "Enviando..." : "Solicitar acceso →"}
+            {enviando ? "Verificando..." : "Solicitar acceso →"}
           </button>
           <button onClick={onVolver} style={{ width: "100%", padding: "10px", borderRadius: 10, border: "1px solid #ffffff15", background: "transparent", color: "#94a3b8", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
             ← Ya tengo cuenta, iniciar sesión

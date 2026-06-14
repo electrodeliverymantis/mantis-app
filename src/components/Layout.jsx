@@ -42,10 +42,10 @@ export default function Layout({ vistaActual, setVistaActual, children }) {
   }, [])
 
   const itemsVisibles = menuItems.filter(item => {
-    const rol = usuario?.role || usuario?.rol
-    if (rol === 'superadmin') return true
-    return item.roles.includes(rol)
-  })
+  const rol = usuario?.role || usuario?.rol
+  if (rol === 'superadmin') return item.roles.includes('superadmin')
+  return item.roles.includes(rol)
+})
 
   const rolInfo = rolConfig[usuario?.role || usuario?.rol] || rolConfig.admin
 

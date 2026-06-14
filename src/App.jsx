@@ -114,20 +114,49 @@ function AppContenido() {
   if (mostrarRegistro) return <Registro onVolver={() => setMostrarRegistro(false)} />
   if (!usuario) return <PantallaLogin onRegistro={() => setMostrarRegistro(true)} />
 
+  // ── SUPERADMIN: solo ve su panel ──────────────────────────
+  if (usuario?.role === 'superadmin' || usuario?.es_superadmin) {
+    return (
+      <div style={{ minHeight: "100vh", fontFamily: "'DM Sans', sans-serif", background: "#f0f2f7" }}>
+        <div style={{ background: "linear-gradient(90deg, #0f172a, #1e293b)", padding: "14px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 2px 12px #00000030" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 34, height: 34, borderRadius: 10, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>⚙</div>
+            <div>
+              <div style={{ color: "#fff", fontWeight: 800, fontSize: 16 }}>MANTIS</div>
+              <div style={{ color: "#94a3b8", fontSize: 10, letterSpacing: 2, textTransform: "uppercase" }}>Super Admin</div>
+            </div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <span style={{ background: "#dc262618", color: "#dc2626", border: "1px solid #dc262640", borderRadius: 20, padding: "3px 12px", fontSize: 11, fontWeight: 700 }}>
+              🔐 Super Admin
+            </span>
+            <button onClick={() => supabase.auth.signOut().then(() => window.location.reload())}
+              style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid #ffffff15", background: "#ffffff08", color: "#94a3b8", cursor: "pointer", fontSize: 12, fontFamily: "inherit" }}>
+              Cerrar sesión
+            </button>
+          </div>
+        </div>
+        <div style={{ padding: 24, maxWidth: 1200, margin: "0 auto" }}>
+          <SuperAdmin />
+        </div>
+      </div>
+    )
+  }
+
+  // ── RESTO DE ROLES: layout normal ─────────────────────────
   const renderPagina = () => {
     switch (vistaActual) {
-      case "dashboard":   return <Dashboard />
-      case "ordenes":     return <Ordenes />
-      case "preventivos": return <Preventivos />
-      case "historial":   return <Historial />
+      case "dashboard":       return <Dashboard />
+      case "ordenes":         return <Ordenes />
+      case "preventivos":     return <Preventivos />
+      case "historial":       return <Historial />
       case "infraestructura": return <Infraestructura />
-      case "inventario": return <Inventario />
-      case "superadmin": console.log("RENDERIZANDO SUPERADMIN"); return <SuperAdmin />
-      case "configuracion": return <Configuracion />
-      case "asistente": console.log("ASISTENTE"); return <Asistente />
-      case "proveedores": return <Proveedores />
-      case "usuarios":    return <Usuarios />
-      default:            return <Dashboard />
+      case "inventario":      return <Inventario />
+      case "configuracion":   return <Configuracion />
+      case "asistente":       return <Asistente />
+      case "proveedores":     return <Proveedores />
+      case "usuarios":        return <Usuarios />
+      default:                return <Dashboard />
     }
   }
 
