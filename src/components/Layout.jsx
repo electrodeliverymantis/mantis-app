@@ -18,6 +18,7 @@ const menuItems = [
   { id: "historial",       etiqueta: "Historial",                   icono: "📁", roles: ["admin","mantenimiento","visualizacion"] },
   { id: "proveedores",     etiqueta: "Proveedores",                 icono: "🏢", roles: ["admin","mantenimiento","visualizacion"] },
   { id: "usuarios",        etiqueta: "Usuarios",                    icono: "👥", roles: ["admin"] },
+  { id: "configuracion", etiqueta: "Configuración", icono: "⚙", roles: ["admin"] },
   { id: "superadmin",      etiqueta: "Super Admin",                 icono: "🔐", roles: ["superadmin"] },
 ]
 

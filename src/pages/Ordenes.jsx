@@ -375,7 +375,7 @@ export default function Ordenes() {
   const [error, setError] = useState("")
 
   const puedeCrear = usuario?.role === 'produccion' || usuario?.role === 'admin'
-  const isMant = usuario?.role === 'mantenimiento' || usuario?.role === 'admin'
+  const isMant = usuario?.role === 'mantenimiento' || usuario?.role === 'admin' || usuario?.role === 'superadmin'
   const canEdit = usuario?.role !== 'visualizacion'
   const maquinasDisponibles = sector ? (MAQUINAS[sector] || []) : []
 
