@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 
 export function useDashboard() {
   const [metricas, setMetricas] = useState({
@@ -12,39 +13,37 @@ export function useDashboard() {
   const [ordenesRecientes, setOrdenesRecientes] = useState([])
   const [preventivosProximos, setPreventivosProximos] = useState([])
   const [cargando, setCargando] = useState(true)
+  const { usuario } = useAuth()
 
   const cargarDatos = async () => {
+    if (!usuario?.empresa_id) return
     setCargando(true)
     try {
-      // Obtener todas las órdenes
       const { data: ordenes } = await supabase
         .from('ordenes_trabajo')
         .select('*')
+        .eq('empresa_id', usuario.empresa_id)
         .order('created_at', { ascending: false })
 
-      // Obtener preventivos
       const { data: preventivos } = await supabase
         .from('preventivos')
         .select('*')
+        .eq('empresa_id', usuario.empresa_id)
         .order('proxima_fecha', { ascending: true })
 
       if (ordenes) {
-        // Calcular métricas
-      setMetricas({
-    totalOrdenes: ordenes.length,
-    pendientes: ordenes.filter(o => o.estado === 'pendiente').length,
-    agendadas: ordenes.filter(o => o.estado === 'agendado').length,
-    enProceso: ordenes.filter(o => o.estado === 'en_proceso').length,
-    resueltas: ordenes.filter(o => o.estado === 'resuelto').length,
-    preventivosVencidos: preventivos?.filter(p => p.estado === 'vencido').length || 0,
-})
-
-        // Últimas 5 órdenes
+        setMetricas({
+          totalOrdenes: ordenes.length,
+          pendientes: ordenes.filter(o => o.estado === 'pendiente').length,
+          agendadas: ordenes.filter(o => o.estado === 'agendado').length,
+          enProceso: ordenes.filter(o => o.estado === 'en_proceso').length,
+          resueltas: ordenes.filter(o => o.estado === 'resuelto').length,
+          preventivosVencidos: preventivos?.filter(p => p.estado === 'vencido').length || 0,
+        })
         setOrdenesRecientes(ordenes.slice(0, 5))
       }
 
       if (preventivos) {
-        // Próximos 5 preventivos
         setPreventivosProximos(preventivos.slice(0, 5))
       }
     } catch (error) {
@@ -55,12 +54,12 @@ export function useDashboard() {
   }
 
   useEffect(() => {
-    cargarDatos()
-
-    // Actualizar cada 60 segundos automáticamente
-    const intervalo = setInterval(cargarDatos, 60000)
-    return () => clearInterval(intervalo)
-  }, [])
+    if (usuario?.empresa_id) {
+      cargarDatos()
+      const intervalo = setInterval(cargarDatos, 60000)
+      return () => clearInterval(intervalo)
+    }
+  }, [usuario?.empresa_id])
 
   return { metricas, ordenesRecientes, preventivosProximos, cargando, recargar: cargarDatos }
 }

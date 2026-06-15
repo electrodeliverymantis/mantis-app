@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import * as XLSX from 'xlsx'
 import { saveAs } from 'file-saver'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 
 const estadoConfig = {
   pendiente:         { etiqueta: "Pendiente",        color: "#f59e0b", bg: "#fef3c7", icono: "⏳" },
@@ -24,6 +25,7 @@ function BadgeEstado({ estado }) {
 }
 
 export default function Historial() {
+  const { usuario } = useAuth()
   const [ordenes, setOrdenes] = useState([])
   const [historial, setHistorial] = useState([])
   const [cargando, setCargando] = useState(true)
@@ -33,10 +35,14 @@ export default function Historial() {
 
   useEffect(() => {
     const cargar = async () => {
+      if (!usuario?.empresa_id) return
       setCargando(true)
       try {
         const { data: ords } = await supabase
-          .from('ordenes_trabajo').select('*').order('created_at', { ascending: false })
+          .from('ordenes_trabajo')
+          .select('*')
+          .eq('empresa_id', usuario.empresa_id)
+          .order('created_at', { ascending: false })
         const { data: hist } = await supabase
           .from('historial_ordenes').select('*')
         setOrdenes(ords || [])
@@ -47,8 +53,8 @@ export default function Historial() {
         setCargando(false)
       }
     }
-    cargar()
-  }, [])
+    if (usuario?.empresa_id) cargar()
+  }, [usuario?.empresa_id])
 
   const ordenesConMetricas = ordenes.map(o => {
     const hist = historial.filter(h => h.orden_id === o.id)

@@ -1,18 +1,21 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 
 export function useOrdenes() {
   const [ordenes, setOrdenes] = useState([])
   const [cargando, setCargando] = useState(true)
+  const { usuario } = useAuth()
 
   const cargarOrdenes = async () => {
+    if (!usuario?.empresa_id) return
     setCargando(true)
     try {
       const { data, error } = await supabase
         .from('ordenes_trabajo')
         .select('*')
+        .eq('empresa_id', usuario.empresa_id)
         .order('created_at', { ascending: false })
-
       if (error) throw error
       setOrdenes(data || [])
     } catch (error) {
@@ -26,10 +29,9 @@ export function useOrdenes() {
     try {
       const { data, error } = await supabase
         .from('ordenes_trabajo')
-        .insert([nuevaOrden])
+        .insert([{ ...nuevaOrden, empresa_id: usuario.empresa_id }])
         .select()
         .single()
-
       if (error) throw error
       setOrdenes(prev => [data, ...prev])
       return data
@@ -41,22 +43,17 @@ export function useOrdenes() {
 
   const actualizarEstado = async (ordenId, nuevoEstado, historial) => {
     try {
-      // Actualizar estado en la orden
       const { error: errorOrden } = await supabase
         .from('ordenes_trabajo')
         .update({ estado: nuevoEstado })
         .eq('id', ordenId)
-
       if (errorOrden) throw errorOrden
 
-      // Guardar en historial
       const { error: errorHistorial } = await supabase
         .from('historial_ordenes')
         .insert([{ orden_id: ordenId, estado: nuevoEstado, ...historial }])
-
       if (errorHistorial) throw errorHistorial
 
-      // Actualizar lista local
       setOrdenes(prev => prev.map(o =>
         o.id === ordenId ? { ...o, estado: nuevoEstado } : o
       ))
@@ -72,14 +69,13 @@ export function useOrdenes() {
       .select('*')
       .eq('orden_id', ordenId)
       .order('fecha', { ascending: true })
-
     if (error) throw error
     return data || []
   }
 
   useEffect(() => {
-    cargarOrdenes()
-  }, [])
+    if (usuario?.empresa_id) cargarOrdenes()
+  }, [usuario?.empresa_id])
 
   return { ordenes, cargando, crearOrden, actualizarEstado, cargarHistorial, recargar: cargarOrdenes }
 }

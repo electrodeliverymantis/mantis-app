@@ -37,22 +37,31 @@ export default function Usuarios() {
   })
 
   const cargarDatos = async () => {
-    setCargando(true)
-    try {
-      const { data: usrs } = await supabase
-        .from('usuarios').select('*').order('created_at', { ascending: false })
-      const { data: sols } = await supabase
-        .from('solicitudes_acceso').select('*').order('created_at', { ascending: false })
-      setUsuarios(usrs || [])
-      setSolicitudes(sols || [])
-    } catch (error) {
-      console.error('Error:', error)
-    } finally {
-      setCargando(false)
-    }
+  if (!usuario?.empresa_id) return
+  setCargando(true)
+  try {
+    const { data: usrs } = await supabase
+      .from('usuarios')
+      .select('*')
+      .eq('empresa_id', usuario.empresa_id)
+      .order('created_at', { ascending: false })
+    const { data: sols } = await supabase
+      .from('solicitudes_acceso')
+      .select('*')
+      .eq('empresa_id', usuario.empresa_id)
+      .order('created_at', { ascending: false })
+    setUsuarios(usrs || [])
+    setSolicitudes(sols || [])
+  } catch (error) {
+    console.error('Error:', error)
+  } finally {
+    setCargando(false)
   }
+}
 
-  useEffect(() => { cargarDatos() }, [])
+useEffect(() => {
+  if (usuario?.empresa_id) cargarDatos()
+}, [usuario?.empresa_id])
 
   const handleCrearUsuario = async () => {
     if (!form.nombre || !form.apellido || !form.email || !form.password) {

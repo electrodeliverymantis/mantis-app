@@ -22,7 +22,6 @@ export default function Proveedores() {
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState("")
 
-  // Formulario
   const [nombre, setNombre] = useState("")
   const [rubro, setRubro] = useState("")
   const [contacto, setContacto] = useState("")
@@ -32,11 +31,13 @@ export default function Proveedores() {
   const isMant = usuario?.role === 'mantenimiento' || usuario?.role === 'admin'
 
   const cargarProveedores = async () => {
+    if (!usuario?.empresa_id) return
     setCargando(true)
     try {
       const { data, error } = await supabase
         .from('proveedores')
         .select('*')
+        .eq('empresa_id', usuario.empresa_id)
         .order('nombre', { ascending: true })
       if (error) throw error
       setProveedores(data || [])
@@ -47,7 +48,9 @@ export default function Proveedores() {
     }
   }
 
-  useEffect(() => { cargarProveedores() }, [])
+  useEffect(() => {
+    if (usuario?.empresa_id) cargarProveedores()
+  }, [usuario?.empresa_id])
 
   const handleCrear = async () => {
     if (!nombre || !rubro) { setError("Nombre y rubro son obligatorios"); return }
@@ -55,7 +58,7 @@ export default function Proveedores() {
     try {
       const { data, error } = await supabase
         .from('proveedores')
-        .insert([{ nombre, rubro, contacto, email, notas }])
+        .insert([{ nombre, rubro, contacto, email, notas, empresa_id: usuario.empresa_id }])
         .select().single()
       if (error) throw error
       setProveedores(prev => [...prev, data])
@@ -78,7 +81,6 @@ export default function Proveedores() {
 
   return (
     <div>
-      {/* Toolbar */}
       <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap", alignItems: "center" }}>
         {isMant && (
           <button onClick={() => setMostrarFormulario(true)} style={{
@@ -94,7 +96,6 @@ export default function Proveedores() {
         />
       </div>
 
-      {/* Lista de proveedores */}
       {cargando ? (
         <div style={{ textAlign: "center", padding: 60, color: "#94a3b8" }}>⚙ Cargando proveedores...</div>
       ) : (
@@ -142,7 +143,6 @@ export default function Proveedores() {
         </div>
       )}
 
-      {/* Modal */}
       {mostrarFormulario && (
         <div style={{
           position: "fixed", inset: 0, background: "#00000060", zIndex: 1000,

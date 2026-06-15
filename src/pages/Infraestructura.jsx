@@ -41,9 +41,9 @@ function diasParaVencer(fechaVencimiento) {
 }
 
 const estadoConfig = {
-  vigente:  { etiqueta: "Vigente",          color: "#10b981", bg: "#d1fae5", icono: "✅" },
-  proximo:  { etiqueta: "Vence pronto",     color: "#f59e0b", bg: "#fef3c7", icono: "⚠️" },
-  vencido:  { etiqueta: "Vencido",          color: "#ef4444", bg: "#fee2e2", icono: "🔴" },
+  vigente:  { etiqueta: "Vigente",      color: "#10b981", bg: "#d1fae5", icono: "✅" },
+  proximo:  { etiqueta: "Vence pronto", color: "#f59e0b", bg: "#fef3c7", icono: "⚠️" },
+  vencido:  { etiqueta: "Vencido",      color: "#ef4444", bg: "#fee2e2", icono: "🔴" },
 }
 
 function BadgeEstado({ estado }) {
@@ -77,15 +77,15 @@ export default function Infraestructura() {
   const canEdit = usuario?.role === 'admin' || usuario?.role === 'mantenimiento'
 
   const cargarItems = async () => {
+    if (!usuario?.empresa_id) return
     setCargando(true)
     try {
       const { data, error } = await supabase
         .from('infraestructura')
         .select('*')
+        .eq('empresa_id', usuario.empresa_id)
         .order('fecha_vencimiento', { ascending: true })
       if (error) throw error
-
-      // Calcular estado automáticamente según fecha
       const actualizados = (data || []).map(item => ({
         ...item,
         estado: calcularEstado(item.fecha_vencimiento)
@@ -98,7 +98,9 @@ export default function Infraestructura() {
     }
   }
 
-  useEffect(() => { cargarItems() }, [])
+  useEffect(() => {
+    if (usuario?.empresa_id) cargarItems()
+  }, [usuario?.empresa_id])
 
   const handleGuardar = async () => {
     if (!form.nombre || !form.categoria) { setError("Nombre y categoría son obligatorios"); return }
@@ -114,7 +116,7 @@ export default function Infraestructura() {
       } else {
         const { error } = await supabase
           .from('infraestructura')
-          .insert([{ ...form, estado: estadoCalculado }])
+          .insert([{ ...form, estado: estadoCalculado, empresa_id: usuario.empresa_id }])
         if (error) throw error
       }
       setForm({ categoria: "matafuegos", nombre: "", ubicacion: "", descripcion: "", fecha_vencimiento: "", ultima_revision: "", proveedor_servicio: "", notas: "", imagen_url: "" })
@@ -161,16 +163,13 @@ export default function Infraestructura() {
 
   return (
     <div>
-      {/* Alertas */}
       {(vencidos > 0 || proximos > 0) && (
         <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
           {vencidos > 0 && (
             <div style={{ background: "#fee2e2", border: "1px solid #ef444440", borderRadius: 12, padding: "12px 16px", display: "flex", alignItems: "center", gap: 10 }}>
               <span style={{ fontSize: 20 }}>🔴</span>
               <div>
-                <div style={{ fontWeight: 700, color: "#ef4444", fontSize: 14 }}>
-                  {vencidos} item{vencidos > 1 ? 's' : ''} vencido{vencidos > 1 ? 's' : ''}
-                </div>
+                <div style={{ fontWeight: 700, color: "#ef4444", fontSize: 14 }}>{vencidos} item{vencidos > 1 ? 's' : ''} vencido{vencidos > 1 ? 's' : ''}</div>
                 <div style={{ fontSize: 12, color: "#b91c1c" }}>Requieren atención inmediata</div>
               </div>
             </div>
@@ -179,9 +178,7 @@ export default function Infraestructura() {
             <div style={{ background: "#fef3c7", border: "1px solid #f59e0b40", borderRadius: 12, padding: "12px 16px", display: "flex", alignItems: "center", gap: 10 }}>
               <span style={{ fontSize: 20 }}>⚠️</span>
               <div>
-                <div style={{ fontWeight: 700, color: "#d97706", fontSize: 14 }}>
-                  {proximos} item{proximos > 1 ? 's' : ''} vence{proximos === 1 ? '' : 'n'} en menos de 30 días
-                </div>
+                <div style={{ fontWeight: 700, color: "#d97706", fontSize: 14 }}>{proximos} item{proximos > 1 ? 's' : ''} vence{proximos === 1 ? '' : 'n'} en menos de 30 días</div>
                 <div style={{ fontSize: 12, color: "#92400e" }}>Programá la renovación</div>
               </div>
             </div>
@@ -189,7 +186,6 @@ export default function Infraestructura() {
         </div>
       )}
 
-      {/* Toolbar */}
       <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
         {canEdit && (
           <button onClick={() => { setItemSeleccionado(null); setForm({ categoria: "matafuegos", nombre: "", ubicacion: "", descripcion: "", fecha_vencimiento: "", ultima_revision: "", proveedor_servicio: "", notas: "", imagen_url: "" }); setMostrarFormulario(true) }} style={{
@@ -198,18 +194,12 @@ export default function Infraestructura() {
             fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit"
           }}>+ Nuevo Item</button>
         )}
-        <input
-          type="text" value={busqueda} onChange={e => setBusqueda(e.target.value)}
-          placeholder="🔍 Buscar..."
-          style={{ padding: "9px 14px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 13, outline: "none", fontFamily: "inherit", background: "#fff", width: 220 }}
-        />
+        <input type="text" value={busqueda} onChange={e => setBusqueda(e.target.value)} placeholder="🔍 Buscar..."
+          style={{ padding: "9px 14px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 13, outline: "none", fontFamily: "inherit", background: "#fff", width: 220 }} />
       </div>
 
-      {/* Filtros por categoría */}
       <div style={{ display: "flex", gap: 6, marginBottom: 10, flexWrap: "wrap" }}>
-        <button onClick={() => setFiltroCategoria("todos")} style={{ padding: "7px 14px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "inherit", background: filtroCategoria === "todos" ? "#0f172a" : "#fff", color: filtroCategoria === "todos" ? "#fff" : "#64748b", boxShadow: "0 1px 4px #00000010" }}>
-          Todas
-        </button>
+        <button onClick={() => setFiltroCategoria("todos")} style={{ padding: "7px 14px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "inherit", background: filtroCategoria === "todos" ? "#0f172a" : "#fff", color: filtroCategoria === "todos" ? "#fff" : "#64748b", boxShadow: "0 1px 4px #00000010" }}>Todas</button>
         {CATEGORIAS.map(c => (
           <button key={c.id} onClick={() => setFiltroCategoria(c.id)} style={{ padding: "7px 14px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "inherit", background: filtroCategoria === c.id ? "#0f172a" : "#fff", color: filtroCategoria === c.id ? "#fff" : "#64748b", boxShadow: "0 1px 4px #00000010" }}>
             {c.icono} {c.etiqueta}
@@ -217,7 +207,6 @@ export default function Infraestructura() {
         ))}
       </div>
 
-      {/* Filtros por estado */}
       <div style={{ display: "flex", gap: 6, marginBottom: 20, flexWrap: "wrap" }}>
         {["todos", "vigente", "proximo", "vencido"].map(e => (
           <button key={e} onClick={() => setFiltroEstado(e)} style={{ padding: "7px 12px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "inherit", background: filtroEstado === e ? "#6366f1" : "#fff", color: filtroEstado === e ? "#fff" : "#64748b", boxShadow: "0 1px 4px #00000010" }}>
@@ -229,7 +218,6 @@ export default function Infraestructura() {
         ))}
       </div>
 
-      {/* Tabla */}
       {cargando ? (
         <div style={{ textAlign: "center", padding: 60, color: "#94a3b8" }}>⚙ Cargando...</div>
       ) : (
@@ -278,12 +266,8 @@ export default function Infraestructura() {
                     <td style={{ padding: "12px 16px" }}><BadgeEstado estado={item.estado} /></td>
                     <td style={{ padding: "12px 16px" }}>
                       <div style={{ display: "flex", gap: 6 }}>
-                        {canEdit && (
-                          <button onClick={() => handleEditar(item)} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>✏️</button>
-                        )}
-                        {canEdit && (
-                          <button onClick={() => handleEliminar(item.id)} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #ef444440", background: "#fee2e2", color: "#ef4444", cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>🗑</button>
-                        )}
+                        {canEdit && <button onClick={() => handleEditar(item)} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>✏️</button>}
+                        {canEdit && <button onClick={() => handleEliminar(item.id)} style={{ padding: "5px 10px", borderRadius: 6, border: "1px solid #ef444440", background: "#fee2e2", color: "#ef4444", cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>🗑</button>}
                       </div>
                     </td>
                   </tr>
@@ -297,7 +281,6 @@ export default function Infraestructura() {
         </div>
       )}
 
-      {/* Modal formulario */}
       {mostrarFormulario && (
         <div style={{ position: "fixed", inset: 0, background: "#00000060", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
           onClick={e => e.target === e.currentTarget && setMostrarFormulario(false)}>
@@ -349,11 +332,7 @@ export default function Infraestructura() {
               </div>
               <div style={{ marginBottom: 14 }}>
                 <label style={labelStyle}>Imagen / Certificado (opcional)</label>
-                <SubirImagen
-                  onImagenSubida={(url) => setForm({...form, imagen_url: url || ""})}
-                  imagenActual={form.imagen_url}
-                  carpeta="infraestructura"
-                />
+                <SubirImagen onImagenSubida={(url) => setForm({...form, imagen_url: url || ""})} imagenActual={form.imagen_url} carpeta="infraestructura" />
               </div>
               {error && <div style={{ background: "#fee2e2", color: "#ef4444", borderRadius: 8, padding: "8px 12px", fontSize: 12, marginBottom: 14 }}>❌ {error}</div>}
               <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>

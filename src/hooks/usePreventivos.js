@@ -1,16 +1,20 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabase'
+import { useAuth } from '../context/AuthContext'
 
 export function usePreventivos() {
   const [preventivos, setPreventivos] = useState([])
   const [cargando, setCargando] = useState(true)
+  const { usuario } = useAuth()
 
   const cargarPreventivos = async () => {
+    if (!usuario?.empresa_id) return
     setCargando(true)
     try {
       const { data, error } = await supabase
         .from('preventivos')
         .select('*')
+        .eq('empresa_id', usuario.empresa_id)
         .order('proxima_fecha', { ascending: true })
       if (error) throw error
       const hoy = new Date().toISOString().split('T')[0]
@@ -26,12 +30,16 @@ export function usePreventivos() {
     }
   }
 
-  useEffect(() => { cargarPreventivos() }, [])
+  useEffect(() => {
+    if (usuario?.empresa_id) cargarPreventivos()
+  }, [usuario?.empresa_id])
 
   const crearPreventivo = async (nuevoPreventivo) => {
     try {
       const { data, error } = await supabase
-        .from('preventivos').insert([nuevoPreventivo]).select().single()
+        .from('preventivos')
+        .insert([{ ...nuevoPreventivo, empresa_id: usuario.empresa_id }])
+        .select().single()
       if (error) throw error
       setPreventivos(prev => [...prev, data])
       return data
@@ -66,6 +74,7 @@ export function usePreventivos() {
           proxima_fecha: proximaFecha,
           sector_id: preventivo.sector_id,
           maquina_id: preventivo.maquina_id,
+          empresa_id: usuario.empresa_id,
           estado: 'pendiente'
         }])
         .select().single()
