@@ -73,9 +73,16 @@ export function useOrdenes() {
     return data || []
   }
 
+  const eliminarOrden = async (id) => {
+    await supabase.from('historial_ordenes').delete().eq('orden_id', id)
+    await supabase.from('mensajes_orden').delete().eq('orden_id', id)
+    await supabase.from('ordenes_trabajo').delete().eq('id', id)
+    setOrdenes(prev => prev.filter(o => o.id !== id))
+  }
+
   useEffect(() => {
     if (usuario?.empresa_id) cargarOrdenes()
   }, [usuario?.empresa_id])
 
-  return { ordenes, cargando, crearOrden, actualizarEstado, cargarHistorial, recargar: cargarOrdenes }
+  return { ordenes, cargando, crearOrden, actualizarEstado, cargarHistorial, eliminarOrden, recargar: cargarOrdenes }
 }
