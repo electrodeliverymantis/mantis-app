@@ -161,7 +161,7 @@ export default function SuperAdmin() {
       // Actualizar email y contraseña via Edge Function
 if (usuarioAdmin) {
   const session = await supabase.auth.getSession()
-  await fetch(`https://jnjxoaewufppeqrhoaja.supabase.co/functions/v1/update-user-auth`, {
+  await fetch(`https://jnjxoaewufppeqrhoaja.supabase.co/functions/v1/swift-service`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
