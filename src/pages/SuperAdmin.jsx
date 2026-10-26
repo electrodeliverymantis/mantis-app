@@ -112,8 +112,10 @@ export default function SuperAdmin() {
         email: form.admin_email, password: form.admin_password,
         options: { emailRedirectTo: undefined }
       })
-      if (authError) throw authError
-
+      if (authError) {
+  await supabase.from('empresas').delete().eq('id', empresa.id)
+  throw authError
+}
       const { error: dbError } = await supabase.from('usuarios').insert([{
         id: authData.user.id, empresa_id: empresa.id,
         nombre: form.contacto_nombre || "Admin", apellido: "",
