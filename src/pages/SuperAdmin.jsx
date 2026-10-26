@@ -205,33 +205,49 @@ export default function SuperAdmin() {
   const handleEliminar = async (empresa) => {
     if (!confirm(`⚠️ ¿Eliminar permanentemente "${empresa.nombre}"?\n\nEsta acción no se puede deshacer.`)) return
     if (!confirm(`¿Estás seguro? Se eliminarán todos los datos de "${empresa.nombre}" incluyendo sus usuarios.`)) return
-    try {
-      const { data: usrsEmpresa } = await supabase
-        .from('usuarios')
-        .select('id')
-        .eq('empresa_id', empresa.id)
+  try {
+  // Borrar usuarios de Auth via Edge Function
+  const { data: usrsEmpresa } = await supabase
+    .from('usuarios')
+    .select('id')
+    .eq('empresa_id', empresa.id)
 
-      if (usrsEmpresa && usrsEmpresa.length > 0) {
-        for (const usr of usrsEmpresa) {
-          await callEdge({ action: 'delete', user_id: usr.id })
-        }
-      }
+  if (usrsEmpresa && usrsEmpresa.length > 0) {
+    for (const usr of usrsEmpresa) {
+      await callEdge({ action: 'delete', user_id: usr.id })
+    }
+  }
 
-      await supabase.from('preventivos').delete().eq('empresa_id', empresa.id)
-await supabase.from('ordenes_trabajo').delete().eq('empresa_id', empresa.id)
-await supabase.from('inventario').delete().eq('empresa_id', empresa.id)
-await supabase.from('infraestructura').delete().eq('empresa_id', empresa.id)
-await supabase.from('proveedores').delete().eq('empresa_id', empresa.id)
-await supabase.from('sectores').delete().eq('empresa_id', empresa.id)
-await supabase.from('maquinas').delete().eq('empresa_id', empresa.id)
-await supabase.from('partes').delete().eq('empresa_id', empresa.id)
-await supabase.from('usuarios').delete().eq('empresa_id', empresa.id)
-await supabase.from('solicitudes_acceso').delete().eq('empresa_id', empresa.id)
-const { error } = await supabase.from('empresas').delete().eq('id', empresa.id)
-      if (error) throw error
-      cargarDatos()
-    } catch (e) {
-      alert(`Error al eliminar: ${e.message}`)
+  // Borrar historial y mensajes de órdenes
+  const { data: ordenes } = await supabase
+    .from('ordenes_trabajo')
+    .select('id')
+    .eq('empresa_id', empresa.id)
+
+  if (ordenes && ordenes.length > 0) {
+    for (const o of ordenes) {
+      await supabase.from('historial_ordenes').delete().eq('orden_id', o.id)
+      await supabase.from('mensajes_orden').delete().eq('orden_id', o.id)
+    }
+  }
+
+  // Borrar todas las tablas relacionadas
+  await supabase.from('ordenes_trabajo').delete().eq('empresa_id', empresa.id)
+  await supabase.from('preventivos').delete().eq('empresa_id', empresa.id)
+  await supabase.from('inventario').delete().eq('empresa_id', empresa.id)
+  await supabase.from('infraestructura').delete().eq('empresa_id', empresa.id)
+  await supabase.from('proveedores').delete().eq('empresa_id', empresa.id)
+  await supabase.from('sectores').delete().eq('empresa_id', empresa.id)
+  await supabase.from('maquinas').delete().eq('empresa_id', empresa.id)
+  await supabase.from('partes').delete().eq('empresa_id', empresa.id)
+  await supabase.from('usuarios').delete().eq('empresa_id', empresa.id)
+  await supabase.from('solicitudes_acceso').delete().eq('empresa_id', empresa.id)
+  const { error } = await supabase.from('empresas').delete().eq('id', empresa.id)
+  if (error) throw error
+  cargarDatos()
+} catch (e) {
+  alert(`Error al eliminar: ${e.message}`)
+}
     }
   }
 
