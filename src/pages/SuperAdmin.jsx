@@ -5,6 +5,8 @@ const inputStyle = { width: "100%", padding: "10px 12px", borderRadius: 8, borde
 const inputInlineStyle = { padding: "5px 8px", borderRadius: 6, border: "1.5px solid #6366f140", fontSize: 12, color: "#0f172a", outline: "none", fontFamily: "inherit", background: "#f5f3ff", boxSizing: "border-box" }
 const labelStyle = { display: "block", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }
 
+const EDGE_URL = 'https://jnjxoaewufppeqrhoaja.supabase.co/functions/v1/swift-service'
+
 const planConfig = {
   basico:       { color: "#6366f1", bg: "#ede9fe", etiqueta: "Básico",      precio: "$60/mes" },
   profesional:  { color: "#0891b2", bg: "#ecfeff", etiqueta: "Profesional", precio: "$120/mes" },
@@ -57,6 +59,24 @@ export default function SuperAdmin() {
   }
 
   useEffect(() => { cargarDatos() }, [])
+
+  const getToken = async () => {
+    const session = await supabase.auth.getSession()
+    return session.data.session?.access_token
+  }
+
+  const callEdge = async (body) => {
+    const token = await getToken()
+    const res = await fetch(EDGE_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${token}`
+      },
+      body: JSON.stringify(body)
+    })
+    return res.json()
+  }
 
   const generarCodigo = (nombre) => {
     const base = nombre.toUpperCase().replace(/\s+/g, '').substring(0, 6)
@@ -144,36 +164,25 @@ export default function SuperAdmin() {
       }).eq('id', empresaId)
       if (error) throw error
 
-      // Buscar el usuario admin para obtener su ID
-      const { data: usuarioAdmin, error: errorAdmin } = await supabase
+      const { data: usuarioAdmin } = await supabase
         .from('usuarios')
         .select('id')
         .eq('empresa_id', empresaId)
         .eq('rol', 'admin')
         .single()
-        console.log('usuarioAdmin:', usuarioAdmin, 'error:', errorAdmin)
 
-      // Actualizar email en tabla usuarios
       await supabase.from('usuarios').update({
         email: formEdicion.admin_email,
       }).eq('empresa_id', empresaId).eq('rol', 'admin')
 
-      // Actualizar email y contraseña via Edge Function
-if (usuarioAdmin) {
-  const session = await supabase.auth.getSession()
-  await fetch(`https://jnjxoaewufppeqrhoaja.supabase.co/functions/v1/swift-service`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${session.data.session?.access_token}`
-    },
-    body: JSON.stringify({
-      user_id: usuarioAdmin.id,
-      email: formEdicion.admin_email,
-      password: formEdicion.admin_password,
-    })
-  })
-}
+      if (usuarioAdmin) {
+        await callEdge({
+          action: 'update',
+          user_id: usuarioAdmin.id,
+          email: formEdicion.admin_email,
+          password: formEdicion.admin_password,
+        })
+      }
 
       setEmpresaEditando(null)
       cargarDatos()
@@ -197,6 +206,17 @@ if (usuarioAdmin) {
     if (!confirm(`⚠️ ¿Eliminar permanentemente "${empresa.nombre}"?\n\nEsta acción no se puede deshacer.`)) return
     if (!confirm(`¿Estás seguro? Se eliminarán todos los datos de "${empresa.nombre}" incluyendo sus usuarios.`)) return
     try {
+      const { data: usrsEmpresa } = await supabase
+        .from('usuarios')
+        .select('id')
+        .eq('empresa_id', empresa.id)
+
+      if (usrsEmpresa && usrsEmpresa.length > 0) {
+        for (const usr of usrsEmpresa) {
+          await callEdge({ action: 'delete', user_id: usr.id })
+        }
+      }
+
       await supabase.from('usuarios').delete().eq('empresa_id', empresa.id)
       await supabase.from('solicitudes_acceso').delete().eq('empresa_id', empresa.id)
       const { error } = await supabase.from('empresas').delete().eq('id', empresa.id)
