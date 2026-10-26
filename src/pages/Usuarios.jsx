@@ -30,38 +30,37 @@ export default function Usuarios() {
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState("")
 
-  // Formulario nuevo usuario
   const [form, setForm] = useState({
     nombre: "", apellido: "", email: "", password: "",
     dni: "", telefono: "", cargo: "", sector: "", rol: "produccion"
   })
 
   const cargarDatos = async () => {
-  if (!usuario?.empresa_id) return
-  setCargando(true)
-  try {
-    const { data: usrs } = await supabase
-      .from('usuarios')
-      .select('*')
-      .eq('empresa_id', usuario.empresa_id)
-      .order('created_at', { ascending: false })
-    const { data: sols } = await supabase
-      .from('solicitudes_acceso')
-      .select('*')
-      .eq('empresa_id', usuario.empresa_id)
-      .order('created_at', { ascending: false })
-    setUsuarios(usrs || [])
-    setSolicitudes(sols || [])
-  } catch (error) {
-    console.error('Error:', error)
-  } finally {
-    setCargando(false)
+    if (!usuario?.empresa_id) return
+    setCargando(true)
+    try {
+      const { data: usrs } = await supabase
+        .from('usuarios')
+        .select('*')
+        .eq('empresa_id', usuario.empresa_id)
+        .order('created_at', { ascending: false })
+      const { data: sols } = await supabase
+        .from('solicitudes_acceso')
+        .select('*')
+        .eq('empresa_id', usuario.empresa_id)
+        .order('created_at', { ascending: false })
+      setUsuarios(usrs || [])
+      setSolicitudes(sols || [])
+    } catch (error) {
+      console.error('Error:', error)
+    } finally {
+      setCargando(false)
+    }
   }
-}
 
-useEffect(() => {
-  if (usuario?.empresa_id) cargarDatos()
-}, [usuario?.empresa_id])
+  useEffect(() => {
+    if (usuario?.empresa_id) cargarDatos()
+  }, [usuario?.empresa_id])
 
   const handleCrearUsuario = async () => {
     if (!form.nombre || !form.apellido || !form.email || !form.password) {
@@ -70,7 +69,15 @@ useEffect(() => {
     }
     setGuardando(true); setError("")
     try {
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: form.email,
+        password: form.password,
+        options: { emailRedirectTo: undefined }
+      })
+      if (authError) throw authError
+
       const { error } = await supabase.from('usuarios').insert([{
+        id: authData.user.id,
         nombre: form.nombre,
         apellido: form.apellido,
         email: form.email,
@@ -79,13 +86,14 @@ useEffect(() => {
         cargo: form.cargo,
         sector: form.sector,
         rol: form.rol,
+        empresa_id: usuario.empresa_id,
         activo: true
       }])
       if (error) throw error
       setForm({ nombre: "", apellido: "", email: "", password: "", dni: "", telefono: "", cargo: "", sector: "", rol: "produccion" })
       setMostrarFormulario(false)
       cargarDatos()
-    } catch { setError("Error al crear el usuario") }
+    } catch (e) { setError(e.message || "Error al crear el usuario") }
     finally { setGuardando(false) }
   }
 
@@ -95,34 +103,44 @@ useEffect(() => {
     cargarDatos()
   }
 
- const handleAprobarSolicitud = async (solicitud, rolAprobado) => {
+  const handleEliminarUsuario = async (u) => {
+    if (!confirm(`¿Eliminar permanentemente a ${u.nombre} ${u.apellido}?`)) return
     try {
-      // 1. Crear el usuario en Supabase Auth
-      const { data: authData, error: authError } = await supabase.auth.admin
-        ? await supabase.auth.signUp({
-            email: solicitud.email,
-            password: 'Mantis2026!', // contraseña temporal
-            options: { emailRedirectTo: undefined }
-          })
-        : { data: null, error: null }
+      await supabase.from('usuarios').delete().eq('id', u.id)
+      cargarDatos()
+    } catch (e) {
+      alert(`Error: ${e.message}`)
+    }
+  }
 
-      // 2. Crear el perfil en la tabla usuarios
-      await supabase.from('usuarios').insert([{
+  const handleAprobarSolicitud = async (solicitud, rolAprobado) => {
+    try {
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email: solicitud.email,
+        password: solicitud.password,
+        options: { emailRedirectTo: undefined }
+      })
+      if (authError) throw authError
+
+      const { error: dbError } = await supabase.from('usuarios').insert([{
+        id: authData.user.id,
         nombre: solicitud.nombre,
         apellido: solicitud.apellido,
         email: solicitud.email,
         rol: rolAprobado,
+        empresa_id: usuario.empresa_id,
         activo: true
       }])
+      if (dbError) throw dbError
 
-      // 3. Marcar solicitud como aprobada
       await supabase.from('solicitudes_acceso')
         .update({ estado: 'aprobado' }).eq('id', solicitud.id)
 
       cargarDatos()
-      alert(`✅ Usuario aprobado. Contraseña temporal: Mantis2026!\nEl usuario deberá cambiarla al ingresar.`)
+      alert(`✅ Usuario aprobado. Ya puede ingresar con su email y contraseña.`)
     } catch (error) {
       console.error('Error aprobando:', error)
+      alert(`Error: ${error.message}`)
     }
   }
 
@@ -136,7 +154,6 @@ useEffect(() => {
 
   return (
     <div>
-      {/* Tabs */}
       <div style={{ display: "flex", gap: 8, marginBottom: 24 }}>
         <button onClick={() => setTab("usuarios")} style={{
           padding: "10px 20px", borderRadius: 10, border: "none", cursor: "pointer",
@@ -166,14 +183,15 @@ useEffect(() => {
         </button>
       </div>
 
-      {/* TAB USUARIOS */}
       {tab === "usuarios" && (
         <div>
-          <button onClick={() => setMostrarFormulario(true)} style={{
-            padding: "10px 18px", borderRadius: 10, border: "none", marginBottom: 20,
-            background: "linear-gradient(90deg,#6366f1,#8b5cf6)", color: "#fff",
-            fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit"
-          }}>+ Nuevo Usuario</button>
+          {usuario?.role === 'admin' && (
+            <button onClick={() => setMostrarFormulario(true)} style={{
+              padding: "10px 18px", borderRadius: 10, border: "none", marginBottom: 20,
+              background: "linear-gradient(90deg,#6366f1,#8b5cf6)", color: "#fff",
+              fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit"
+            }}>+ Nuevo Usuario</button>
+          )}
 
           <div style={{ background: "#fff", borderRadius: 14, overflow: "hidden", boxShadow: "0 1px 8px #00000010" }}>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
@@ -212,12 +230,20 @@ useEffect(() => {
                         </span>
                       </td>
                       <td style={{ padding: "12px 16px" }}>
-                        {u.activo && (
-                          <button onClick={() => handleDesactivar(u.id)} style={{
-                            padding: "5px 10px", borderRadius: 6, border: "1px solid #ef444440",
-                            background: "#fee2e2", color: "#ef4444", cursor: "pointer", fontSize: 11, fontFamily: "inherit"
-                          }}>Desactivar</button>
-                        )}
+                        <div style={{ display: "flex", gap: 6 }}>
+                          {u.activo && usuario?.role === 'admin' && (
+                            <button onClick={() => handleDesactivar(u.id)} style={{
+                              padding: "5px 10px", borderRadius: 6, border: "1px solid #ef444440",
+                              background: "#fee2e2", color: "#ef4444", cursor: "pointer", fontSize: 11, fontFamily: "inherit"
+                            }}>Desactivar</button>
+                          )}
+                          {usuario?.role === 'admin' && (
+                            <button onClick={() => handleEliminarUsuario(u)} style={{
+                              padding: "5px 10px", borderRadius: 6, border: "1px solid #ef444440",
+                              background: "#fee2e2", color: "#ef4444", cursor: "pointer", fontSize: 11, fontFamily: "inherit"
+                            }}>🗑</button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   )
@@ -231,7 +257,6 @@ useEffect(() => {
         </div>
       )}
 
-      {/* TAB SOLICITUDES */}
       {tab === "solicitudes" && (
         <div>
           {solicitudes.length === 0 ? (
@@ -293,7 +318,6 @@ useEffect(() => {
         </div>
       )}
 
-      {/* Modal nuevo usuario */}
       {mostrarFormulario && (
         <div style={{ position: "fixed", inset: 0, background: "#00000060", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}
           onClick={e => e.target === e.currentTarget && setMostrarFormulario(false)}>
