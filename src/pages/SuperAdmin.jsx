@@ -245,12 +245,11 @@ export default function SuperAdmin() {
   await supabase.from('usuarios').delete().eq('empresa_id', empresa.id)
   await supabase.from('solicitudes_acceso').delete().eq('empresa_id', empresa.id)
   const { error } = await supabase.from('empresas').delete().eq('id', empresa.id)
-  if (error) throw error
+    if (error) throw error
   cargarDatos()
 } catch (e) {
   alert(`Error al eliminar: ${e.message}`)
 }
-    }
   }
 
   const toggleExpandir = (empresaId) => {
