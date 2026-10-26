@@ -145,12 +145,13 @@ export default function SuperAdmin() {
       if (error) throw error
 
       // Buscar el usuario admin para obtener su ID
-      const { data: usuarioAdmin } = await supabase
+      const { data: usuarioAdmin, error: errorAdmin } = await supabase
         .from('usuarios')
         .select('id')
         .eq('empresa_id', empresaId)
         .eq('rol', 'admin')
         .single()
+        console.log('usuarioAdmin:', usuarioAdmin, 'error:', errorAdmin)
 
       // Actualizar email en tabla usuarios
       await supabase.from('usuarios').update({
