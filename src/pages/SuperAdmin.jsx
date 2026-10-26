@@ -217,9 +217,17 @@ export default function SuperAdmin() {
         }
       }
 
-      await supabase.from('usuarios').delete().eq('empresa_id', empresa.id)
-      await supabase.from('solicitudes_acceso').delete().eq('empresa_id', empresa.id)
-      const { error } = await supabase.from('empresas').delete().eq('id', empresa.id)
+      await supabase.from('preventivos').delete().eq('empresa_id', empresa.id)
+await supabase.from('ordenes_trabajo').delete().eq('empresa_id', empresa.id)
+await supabase.from('inventario').delete().eq('empresa_id', empresa.id)
+await supabase.from('infraestructura').delete().eq('empresa_id', empresa.id)
+await supabase.from('proveedores').delete().eq('empresa_id', empresa.id)
+await supabase.from('sectores').delete().eq('empresa_id', empresa.id)
+await supabase.from('maquinas').delete().eq('empresa_id', empresa.id)
+await supabase.from('partes').delete().eq('empresa_id', empresa.id)
+await supabase.from('usuarios').delete().eq('empresa_id', empresa.id)
+await supabase.from('solicitudes_acceso').delete().eq('empresa_id', empresa.id)
+const { error } = await supabase.from('empresas').delete().eq('id', empresa.id)
       if (error) throw error
       cargarDatos()
     } catch (e) {
