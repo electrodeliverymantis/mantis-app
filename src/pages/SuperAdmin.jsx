@@ -144,10 +144,27 @@ export default function SuperAdmin() {
       }).eq('id', empresaId)
       if (error) throw error
 
-      // Actualizar también el usuario admin en la tabla usuarios
+      // Buscar el usuario admin para obtener su ID
+      const { data: usuarioAdmin } = await supabase
+        .from('usuarios')
+        .select('id')
+        .eq('empresa_id', empresaId)
+        .eq('rol', 'admin')
+        .single()
+
+      // Actualizar email en tabla usuarios
       await supabase.from('usuarios').update({
         email: formEdicion.admin_email,
       }).eq('empresa_id', empresaId).eq('rol', 'admin')
+
+      // Actualizar email y contraseña en Supabase Auth
+      if (usuarioAdmin) {
+        const { error: authError } = await supabase.auth.admin.updateUserById(usuarioAdmin.id, {
+          email: formEdicion.admin_email,
+          password: formEdicion.admin_password,
+        })
+        if (authError) console.error('Error actualizando Auth:', authError)
+      }
 
       setEmpresaEditando(null)
       cargarDatos()
@@ -168,18 +185,18 @@ export default function SuperAdmin() {
   }
 
   const handleEliminar = async (empresa) => {
-  if (!confirm(`⚠️ ¿Eliminar permanentemente "${empresa.nombre}"?\n\nEsta acción no se puede deshacer.`)) return
-  if (!confirm(`¿Estás seguro? Se eliminarán todos los datos de "${empresa.nombre}" incluyendo sus usuarios.`)) return
-  try {
-    await supabase.from('usuarios').delete().eq('empresa_id', empresa.id)
-    await supabase.from('solicitudes_acceso').delete().eq('empresa_id', empresa.id)
-    const { error } = await supabase.from('empresas').delete().eq('id', empresa.id)
-    if (error) throw error
-    cargarDatos()
-  } catch (e) {
-    alert(`Error al eliminar: ${e.message}`)
+    if (!confirm(`⚠️ ¿Eliminar permanentemente "${empresa.nombre}"?\n\nEsta acción no se puede deshacer.`)) return
+    if (!confirm(`¿Estás seguro? Se eliminarán todos los datos de "${empresa.nombre}" incluyendo sus usuarios.`)) return
+    try {
+      await supabase.from('usuarios').delete().eq('empresa_id', empresa.id)
+      await supabase.from('solicitudes_acceso').delete().eq('empresa_id', empresa.id)
+      const { error } = await supabase.from('empresas').delete().eq('id', empresa.id)
+      if (error) throw error
+      cargarDatos()
+    } catch (e) {
+      alert(`Error al eliminar: ${e.message}`)
+    }
   }
-}
 
   const toggleExpandir = (empresaId) => {
     setEmpresasExpandidas(prev => ({ ...prev, [empresaId]: !prev[empresaId] }))
@@ -215,7 +232,6 @@ export default function SuperAdmin() {
 
   return (
     <div>
-      {/* Stats */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 24 }}>
         {[
           { label: "Empresas activas", value: empresas.filter(e => e.activa && !e.archivada).length, icono: "🏢", color: "#6366f1" },
@@ -231,7 +247,6 @@ export default function SuperAdmin() {
         ))}
       </div>
 
-      {/* Toolbar */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <h2 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: "#0f172a" }}>
@@ -264,9 +279,7 @@ export default function SuperAdmin() {
             return (
               <div key={empresa.id} style={{ background: "#fff", borderRadius: 16, overflow: "hidden", boxShadow: "0 1px 8px #00000010", border: editando ? "2px solid #6366f1" : empresa.archivada ? "1px solid #94a3b840" : !empresa.activa ? "1px solid #ef444440" : "1px solid #e2e8f0", opacity: empresa.archivada ? 0.7 : 1 }}>
                 <div style={{ padding: 24 }}>
-
                   {editando ? (
-                    // ── MODO EDICIÓN INLINE ──────────────────────────
                     <div>
                       <div style={{ fontSize: 11, fontWeight: 700, color: "#6366f1", textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>✏️ Editando empresa</div>
                       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 12 }}>
@@ -307,7 +320,6 @@ export default function SuperAdmin() {
                           <input value={formEdicion.contacto_email} onChange={e => setFormEdicion({...formEdicion, contacto_email: e.target.value})} style={{...inputInlineStyle, width: "100%"}} />
                         </div>
                       </div>
-
                       <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: 12, marginBottom: 12 }}>
                         <div style={{ fontSize: 11, fontWeight: 700, color: "#6366f1", textTransform: "uppercase", letterSpacing: 1, marginBottom: 10 }}>👑 Admin</div>
                         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -321,7 +333,6 @@ export default function SuperAdmin() {
                           </div>
                         </div>
                       </div>
-
                       <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
                         <button onClick={() => setEmpresaEditando(null)} style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", color: "#64748b", cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "inherit" }}>
                           Cancelar
@@ -332,7 +343,6 @@ export default function SuperAdmin() {
                       </div>
                     </div>
                   ) : (
-                    // ── MODO VISTA NORMAL ────────────────────────────
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                       <div style={{ flex: 1 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
@@ -343,7 +353,6 @@ export default function SuperAdmin() {
                           {dias !== null && dias <= 30 && dias >= 0 && <span style={{ background: "#fef3c7", color: "#d97706", borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 700 }}>⚠️ Vence en {dias}d</span>}
                           {dias !== null && dias < 0 && <span style={{ background: "#fee2e2", color: "#ef4444", borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 700 }}>🔴 Vencida</span>}
                         </div>
-
                         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 8, marginBottom: 8 }}>
                           {empresa.admin_email && (
                             <div style={{ fontSize: 12, color: "#64748b" }}>
@@ -372,14 +381,12 @@ export default function SuperAdmin() {
                             </div>
                           )}
                         </div>
-
                         <div style={{ display: "flex", gap: 16, fontSize: 12, color: "#94a3b8" }}>
                           <span>👥 {usrs.length}/{empresa.max_usuarios} usuarios</span>
                           {empresa.contacto_nombre && <span>📞 {empresa.contacto_nombre}</span>}
                           <span>📅 Creada {new Date(empresa.created_at).toLocaleDateString("es-AR")}</span>
                         </div>
                       </div>
-
                       <div style={{ display: "flex", gap: 6, flexShrink: 0, marginLeft: 16, flexWrap: "wrap", justifyContent: "flex-end" }}>
                         <button onClick={() => handleEditarClick(empresa)} style={{ padding: "7px 12px", borderRadius: 8, border: "1px solid #6366f140", background: "#f5f3ff", color: "#6366f1", cursor: "pointer", fontSize: 12, fontWeight: 700, fontFamily: "inherit" }}>
                           ✏️ Editar
@@ -409,7 +416,6 @@ export default function SuperAdmin() {
                   )}
                 </div>
 
-                {/* Panel expandible usuarios */}
                 {expandida && !editando && (
                   <div style={{ borderTop: "1px solid #f1f5f9", background: "#f8fafc", padding: "16px 24px" }}>
                     <h4 style={{ margin: "0 0 12px", fontSize: 12, fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>
@@ -472,7 +478,6 @@ export default function SuperAdmin() {
         </div>
       )}
 
-      {/* Modal nueva empresa */}
       {mostrarForm && (
         <div style={{ position: "fixed", inset: 0, background: "#00000060", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }} onClick={e => e.target === e.currentTarget && setMostrarForm(false)}>
           <div style={{ background: "#fff", borderRadius: 20, width: "100%", maxWidth: 560, maxHeight: "90vh", overflow: "auto", boxShadow: "0 24px 64px #00000040" }}>
