@@ -338,7 +338,7 @@ export default function Ordenes() {
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState("")
 
-  const puedeCrear = usuario?.role === 'produccion' || usuario?.role === 'admin'
+  const puedeCrear = usuario?.role === 'produccion' || usuario?.role === 'admin' || usuario?.role === 'mantenimiento'
   const isMant = usuario?.role === 'mantenimiento' || usuario?.role === 'admin' || usuario?.role === 'superadmin'
   const canEdit = usuario?.role !== 'visualizacion'
   const esAdmin = usuario?.role === 'admin'
