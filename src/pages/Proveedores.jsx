@@ -28,7 +28,7 @@ export default function Proveedores() {
   const [email, setEmail] = useState("")
   const [notas, setNotas] = useState("")
 
-  const isMant = usuario?.role === 'mantenimiento' || usuario?.role === 'admin'
+  const isMant = usuario?.rol === 'mantenimiento' || usuario?.rol === 'admin'
 
   const cargarProveedores = async () => {
     if (!usuario?.empresa_id) return

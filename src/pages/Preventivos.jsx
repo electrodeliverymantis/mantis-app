@@ -147,7 +147,7 @@ export default function Preventivos() {
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState("")
 
-  const isMant = usuario?.role === 'mantenimiento' || usuario?.role === 'admin'
+  const isMant = usuario?.rol === 'mantenimiento' || usuario?.rol === 'admin'
   const maquinasDisponibles = sector ? (MAQUINAS[sector] || []) : []
 
   const handleCrear = async () => {

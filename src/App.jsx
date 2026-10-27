@@ -115,7 +115,7 @@ function AppContenido() {
   if (!usuario) return <PantallaLogin onRegistro={() => setMostrarRegistro(true)} />
 
   // ── SUPERADMIN: solo ve su panel ──────────────────────────
-  if (usuario?.role === 'superadmin' || usuario?.es_superadmin) {
+  if (usuario?.rol === 'superadmin' || usuario?.es_superadmin) {
     return (
       <div style={{ minHeight: "100vh", fontFamily: "'DM Sans', sans-serif", background: "#f0f2f7" }}>
         <div style={{ background: "linear-gradient(90deg, #0f172a, #1e293b)", padding: "14px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", boxShadow: "0 2px 12px #00000030" }}>

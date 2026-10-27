@@ -74,7 +74,7 @@ export default function Infraestructura() {
     proveedor_servicio: "", notas: "", imagen_url: ""
   })
 
-  const canEdit = usuario?.role === 'admin' || usuario?.role === 'mantenimiento'
+  const canEdit = usuario?.rol === 'admin' || usuario?.rol === 'mantenimiento'
 
   const cargarItems = async () => {
     if (!usuario?.empresa_id) return

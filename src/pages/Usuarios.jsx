@@ -185,7 +185,7 @@ export default function Usuarios() {
 
       {tab === "usuarios" && (
         <div>
-          {usuario?.role === 'admin' && (
+          {usuario?.rol === 'admin' && (
             <button onClick={() => setMostrarFormulario(true)} style={{
               padding: "10px 18px", borderRadius: 10, border: "none", marginBottom: 20,
               background: "linear-gradient(90deg,#6366f1,#8b5cf6)", color: "#fff",
@@ -231,13 +231,13 @@ export default function Usuarios() {
                       </td>
                       <td style={{ padding: "12px 16px" }}>
                         <div style={{ display: "flex", gap: 6 }}>
-                          {u.activo && usuario?.role === 'admin' && (
+                          {u.activo && usuario?.rol === 'admin' && (
                             <button onClick={() => handleDesactivar(u.id)} style={{
                               padding: "5px 10px", borderRadius: 6, border: "1px solid #ef444440",
                               background: "#fee2e2", color: "#ef4444", cursor: "pointer", fontSize: 11, fontFamily: "inherit"
                             }}>Desactivar</button>
                           )}
-                          {usuario?.role === 'admin' && (
+                          {usuario?.rol === 'admin' && (
                             <button onClick={() => handleEliminarUsuario(u)} style={{
                               padding: "5px 10px", borderRadius: 6, border: "1px solid #ef444440",
                               background: "#fee2e2", color: "#ef4444", cursor: "pointer", fontSize: 11, fontFamily: "inherit"

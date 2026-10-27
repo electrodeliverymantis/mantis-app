@@ -29,7 +29,7 @@ export default function Inventario() {
   })
   const [movForm, setMovForm] = useState({ tipo_movimiento: "entrada", cantidad: 1, descripcion: "" })
 
-  const canEdit = usuario?.role === 'admin' || usuario?.role === 'mantenimiento'
+  const canEdit = usuario?.rol === 'admin' || usuario?.rol === 'mantenimiento'
 
   const itemsFiltrados = items
     .filter(i => i.tipo === tab)
