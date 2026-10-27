@@ -338,9 +338,10 @@ export default function Ordenes() {
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState("")
 
-const puedeCrear = usuario?.rol === 'produccion' || usuario?.rol === 'admin' || usuario?.rol === 'mantenimiento'  const isMant = usuario?.role === 'mantenimiento' || usuario?.role === 'admin' || usuario?.role === 'superadmin'
-  const canEdit = usuario?.role !== 'visualizacion'
-  const esAdmin = usuario?.role === 'admin'
+  const puedeCrear = usuario?.rol === 'produccion' || usuario?.rol === 'admin' || usuario?.rol === 'mantenimiento'
+  const isMant = usuario?.rol === 'mantenimiento' || usuario?.rol === 'admin' || usuario?.rol === 'superadmin'
+  const canEdit = usuario?.rol !== 'visualizacion'
+  const esAdmin = usuario?.rol === 'admin'
   const maquinasDisponibles = sector ? (MAQUINAS[sector] || []) : []
 
   const generarNumero = () => `OT-${new Date().getFullYear()}-${String(ordenes.length + 1).padStart(3, "0")}`
