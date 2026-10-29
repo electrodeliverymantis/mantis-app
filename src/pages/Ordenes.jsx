@@ -6,17 +6,6 @@ import Chat from '../components/Chat'
 import { supabase } from '../lib/supabase'
 import { enviarEmail, templateCambioEstado, templateNuevaOrden } from '../lib/email'
 
-const SECTORES = ["Planta A", "Planta B", "Almacén", "Oficinas", "Línea 1", "Línea 2"]
-const MAQUINAS = {
-  "Planta A":  ["Torno CNC-01", "Fresadora F-200", "Prensa H-50"],
-  "Planta B":  ["Compresor C-10", "Soldadora MIG-3", "Cortadora Láser"],
-  "Almacén":   ["Montacargas M-1", "Cinta Transportadora CT-2"],
-  "Oficinas":  ["Aire Acondicionado AA-1", "UPS Central"],
-  "Línea 1":   ["Robot Ensamble R1", "Banda Conveyor B1", "Selladora S1"],
-  "Línea 2":   ["Robot Pintura R2", "Horno H-300", "Enfriador E-1"],
-}
-const PARTES = ["Motor principal", "Sistema hidráulico", "Panel eléctrico", "Rodamientos", "Correas", "Filtros", "Bomba", "Válvulas", "Sensores", "Estructura"]
-
 const estadoConfig = {
   pendiente:         { etiqueta: "Pendiente",       color: "#f59e0b", bg: "#fef3c7", icono: "⏳" },
   agendado:          { etiqueta: "Agendado",        color: "#3b82f6", bg: "#dbeafe", icono: "📅" },
@@ -126,12 +115,17 @@ function DetalleOrden({ orden, onVolver, actualizarEstado, cargarHistorial, isMa
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
               <div>
                 <div style={{ fontSize: 22, fontWeight: 800, color: "#0f172a" }}>{orden.numero}</div>
-                <div style={{ fontSize: 13, color: "#64748b", marginTop: 2 }}>Creada el {orden.fecha}</div>
+                <div style={{ fontSize: 13, color: "#64748b", marginTop: 2 }}>Creada el {orden.fecha}{orden.solicitante_nombre ? ` por ${orden.solicitante_nombre}` : ""}</div>
               </div>
               <BadgeEstado estado={orden.estado} />
             </div>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-              {[{ label: "Parte", value: orden.parte, icono: "🔩" }, { label: "Estado", value: estadoConfig[orden.estado]?.etiqueta, icono: "📊" }].map(f => (
+              {[
+                { label: "Sector", value: orden.sector || "—", icono: "🏭" },
+                { label: "Máquina", value: orden.maquina || "—", icono: "⚙" },
+                { label: "Parte", value: orden.parte || "—", icono: "🔩" },
+                { label: "Estado", value: estadoConfig[orden.estado]?.etiqueta, icono: "📊" },
+              ].map(f => (
                 <div key={f.label} style={{ background: "#f8fafc", borderRadius: 10, padding: "12px 14px" }}>
                   <div style={{ fontSize: 10, color: "#94a3b8", fontWeight: 700, textTransform: "uppercase", marginBottom: 4 }}>{f.icono} {f.label}</div>
                   <div style={{ fontSize: 14, fontWeight: 700, color: "#0f172a" }}>{f.value}</div>
@@ -150,90 +144,71 @@ function DetalleOrden({ orden, onVolver, actualizarEstado, cargarHistorial, isMa
 
           <div style={{ background: "#fff", borderRadius: 16, padding: 24, boxShadow: "0 1px 8px #00000010" }}>
             <h3 style={{ margin: "0 0 24px", fontSize: 15, fontWeight: 800, color: "#0f172a" }}>📅 Línea de Tiempo</h3>
-            {historial.length === 0 ? (
-              <div style={{ position: "relative", paddingLeft: 32 }}>
-                <div style={{ position: "absolute", left: 15, top: 0, bottom: 0, width: 2, background: "linear-gradient(180deg, #6366f1, #e2e8f0)" }} />
-                <div style={{ position: "relative" }}>
-                  <div style={{ position: "absolute", left: -25, top: 4, width: 20, height: 20, borderRadius: "50%", background: "#6366f1", border: "2px solid #6366f1", zIndex: 1 }} />
-                  <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 12, padding: "14px 16px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                      <span style={{ background: "#f1f5f9", color: "#475569", border: "1px solid #e2e8f0", borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 700 }}>📋 Orden Creada</span>
-                      <div style={{ textAlign: "right" }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>
-                          {new Date(new Date(orden.created_at || orden.fecha).getTime() - (3 * 60 * 60 * 1000)).toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}
-                        </div>
-                        <div style={{ fontSize: 11, color: "#94a3b8" }}>
-                          {new Date(new Date(orden.created_at || orden.fecha).getTime() - (3 * 60 * 60 * 1000)).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}hs
-                        </div>
-                      </div>
-                    </div>
-                    <p style={{ margin: "6px 0 0", fontSize: 13, color: "#64748b" }}>Esperando intervención de mantenimiento</p>
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div style={{ position: "relative", paddingLeft: 32 }}>
-                <div style={{ position: "absolute", left: 15, top: 0, bottom: 0, width: 2, background: "linear-gradient(180deg, #6366f1, #e2e8f0)" }} />
-                <div style={{ position: "relative", marginBottom: 28 }}>
-                  <div style={{ position: "absolute", left: -25, top: 4, width: 20, height: 20, borderRadius: "50%", background: "#fff", border: "2px solid #6366f1", zIndex: 1 }} />
-                  <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 12, padding: "14px 16px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                      <span style={{ background: "#f1f5f9", color: "#475569", border: "1px solid #e2e8f0", borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 700 }}>📋 Orden Creada</span>
+            <div style={{ position: "relative", paddingLeft: 32 }}>
+              <div style={{ position: "absolute", left: 15, top: 0, bottom: 0, width: 2, background: "linear-gradient(180deg, #6366f1, #e2e8f0)" }} />
+              <div style={{ position: "relative", marginBottom: historial.length ? 28 : 0 }}>
+                <div style={{ position: "absolute", left: -25, top: 4, width: 20, height: 20, borderRadius: "50%", background: historial.length ? "#fff" : "#6366f1", border: "2px solid #6366f1", zIndex: 1 }} />
+                <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 12, padding: "14px 16px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                    <span style={{ background: "#f1f5f9", color: "#475569", border: "1px solid #e2e8f0", borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 700 }}>📋 Orden Creada</span>
+                    <div style={{ textAlign: "right" }}>
                       <div style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>
-                        {new Date(new Date(orden.created_at || orden.fecha).getTime() - (3 * 60 * 60 * 1000)).toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long" })}
-                        <div style={{ fontSize: 11, color: "#94a3b8" }}>
-                          {new Date(new Date(orden.created_at || orden.fecha).getTime() - (3 * 60 * 60 * 1000)).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}hs
-                        </div>
+                        {new Date(orden.created_at || orden.fecha).toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Argentina/Buenos_Aires" })}
+                      </div>
+                      <div style={{ fontSize: 11, color: "#94a3b8" }}>
+                        {new Date(orden.created_at || orden.fecha).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "America/Argentina/Buenos_Aires" })}hs
                       </div>
                     </div>
-                    <p style={{ margin: "6px 0 0", fontSize: 13, color: "#64748b" }}>Solicitante: {orden.solicitante_id || "Sistema"}</p>
                   </div>
+                  <p style={{ margin: "6px 0 0", fontSize: 13, color: "#64748b" }}>
+                    {historial.length ? `Solicitante: ${orden.solicitante_nombre || "Sistema"}` : "Esperando intervención de mantenimiento"}
+                  </p>
                 </div>
-                {historial.map((h, i) => {
-                  const cfg = estadoConfig[h.estado] || { bg: "#f1f5f9", color: "#94a3b8", icono: "•", etiqueta: h.estado }
-                  const fecha = new Date(new Date(h.fecha).getTime() - (3 * 60 * 60 * 1000))
-                  const esUltimo = i === historial.length - 1
-                  return (
-                    <div key={i} style={{ position: "relative", marginBottom: esUltimo ? 0 : 28 }}>
-                      <div style={{ position: "absolute", left: -25, top: 4, width: 20, height: 20, borderRadius: "50%", background: esUltimo ? cfg.color : "#fff", border: `2px solid ${cfg.color}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, zIndex: 1, boxShadow: esUltimo ? `0 0 0 4px ${cfg.color}20` : "none" }}>
-                        {esUltimo ? "✓" : ""}
-                      </div>
-                      <div style={{ background: esUltimo ? cfg.bg : "#f8fafc", border: `1px solid ${esUltimo ? cfg.color + "40" : "#e2e8f0"}`, borderRadius: 12, padding: "14px 16px", boxShadow: esUltimo ? `0 2px 12px ${cfg.color}15` : "none" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
-                          <BadgeEstado estado={h.estado} />
-                          <div style={{ textAlign: "right" }}>
-                            <div style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>{fecha.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Argentina/Buenos_Aires" })}</div>
-                            <div style={{ fontSize: 11, color: "#94a3b8" }}>{fecha.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "America/Argentina/Buenos_Aires" })}hs</div>
-                          </div>
-                        </div>
-                        {h.descripcion && <p style={{ margin: "0 0 8px", fontSize: 13, color: "#374151", lineHeight: 1.5 }}>{h.descripcion}</p>}
-                        {h.fecha_agendada && <div style={{ fontSize: 11, color: "#3b82f6", marginBottom: 6 }}>📅 Agendado para: {h.fecha_agendada}</div>}
-                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
-                          {h.tiempo_min > 0 && <span style={{ fontSize: 11, background: "#dbeafe", color: "#1d4ed8", borderRadius: 6, padding: "2px 8px" }}>⏱ {h.tiempo_min} min</span>}
-                          {h.repuestos && <span style={{ fontSize: 11, background: "#ede9fe", color: "#6d28d9", borderRadius: 6, padding: "2px 8px" }}>🔩 {h.repuestos}</span>}
-                          {h.costo > 0 && <span style={{ fontSize: 11, background: "#d1fae5", color: "#065f46", borderRadius: 6, padding: "2px 8px" }}>💰 ${parseFloat(h.costo).toLocaleString()}</span>}
-                        </div>
-                        {h.latitud && h.longitud && (
-                          <a href={`https://www.google.com/maps?q=${h.latitud},${h.longitud}`} target="_blank" rel="noopener noreferrer"
-                            style={{ fontSize: 11, background: "#dbeafe", color: "#1d4ed8", borderRadius: 6, padding: "2px 8px", textDecoration: "none", display: "inline-block", marginTop: 6 }}>
-                            📍 {h.direccion || "Ver en Maps"}
-                          </a>
-                        )}
-                        {h.imagen_url && (
-                          <img src={h.imagen_url} alt="foto" style={{ width: "100%", borderRadius: 8, maxHeight: 180, objectFit: "cover", marginTop: 8, cursor: "pointer" }}
-                            onClick={() => window.open(h.imagen_url, '_blank')} />
-                        )}
-                      </div>
-                    </div>
-                  )
-                })}
               </div>
-            )}
+              {historial.map((h, i) => {
+                const cfg = estadoConfig[h.estado] || { bg: "#f1f5f9", color: "#94a3b8", icono: "•", etiqueta: h.estado }
+                const fecha = new Date(h.fecha)
+                const esUltimo = i === historial.length - 1
+                return (
+                  <div key={i} style={{ position: "relative", marginBottom: esUltimo ? 0 : 28 }}>
+                    <div style={{ position: "absolute", left: -25, top: 4, width: 20, height: 20, borderRadius: "50%", background: esUltimo ? cfg.color : "#fff", border: `2px solid ${cfg.color}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, zIndex: 1, boxShadow: esUltimo ? `0 0 0 4px ${cfg.color}20` : "none" }}>
+                      {esUltimo ? "✓" : ""}
+                    </div>
+                    <div style={{ background: esUltimo ? cfg.bg : "#f8fafc", border: `1px solid ${esUltimo ? cfg.color + "40" : "#e2e8f0"}`, borderRadius: 12, padding: "14px 16px" }}>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+                        <BadgeEstado estado={h.estado} />
+                        <div style={{ textAlign: "right" }}>
+                          <div style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}>{fecha.toLocaleDateString("es-AR", { weekday: "long", day: "numeric", month: "long", timeZone: "America/Argentina/Buenos_Aires" })}</div>
+                          <div style={{ fontSize: 11, color: "#94a3b8" }}>{fecha.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "America/Argentina/Buenos_Aires" })}hs</div>
+                        </div>
+                      </div>
+                      {h.descripcion && <p style={{ margin: "0 0 8px", fontSize: 13, color: "#374151", lineHeight: 1.5 }}>{h.descripcion}</p>}
+                      {h.fecha_agendada && <div style={{ fontSize: 11, color: "#3b82f6", marginBottom: 6 }}>📅 Agendado para: {h.fecha_agendada}</div>}
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                        {h.tiempo_min > 0 && <span style={{ fontSize: 11, background: "#dbeafe", color: "#1d4ed8", borderRadius: 6, padding: "2px 8px" }}>⏱ {h.tiempo_min} min</span>}
+                        {h.repuestos && <span style={{ fontSize: 11, background: "#ede9fe", color: "#6d28d9", borderRadius: 6, padding: "2px 8px" }}>🔩 {h.repuestos}</span>}
+                        {h.costo > 0 && <span style={{ fontSize: 11, background: "#d1fae5", color: "#065f46", borderRadius: 6, padding: "2px 8px" }}>💰 ${parseFloat(h.costo).toLocaleString()}</span>}
+                      </div>
+                      {h.latitud && h.longitud && (
+                        <a href={`https://www.google.com/maps?q=${h.latitud},${h.longitud}`} target="_blank" rel="noopener noreferrer"
+                          style={{ fontSize: 11, background: "#dbeafe", color: "#1d4ed8", borderRadius: 6, padding: "2px 8px", textDecoration: "none", display: "inline-block", marginTop: 6 }}>
+                          📍 {h.direccion || "Ver en Maps"}
+                        </a>
+                      )}
+                      {h.imagen_url && (
+                        <img src={h.imagen_url} alt="foto" style={{ width: "100%", borderRadius: 8, maxHeight: 180, objectFit: "cover", marginTop: 8, cursor: "pointer" }}
+                          onClick={() => window.open(h.imagen_url, '_blank')} />
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
           </div>
         </div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-          <Chat ordenId={orden.id} usuarioNombre={orden.solicitante_id || "Usuario"} />
+          <Chat ordenId={orden.id} usuarioNombre={orden.solicitante_nombre || "Usuario"} />
           <div style={{ background: "#fff", borderRadius: 16, padding: 20, boxShadow: "0 1px 8px #00000010" }}>
             <h4 style={{ margin: "0 0 14px", fontSize: 13, fontWeight: 700, color: "#0f172a" }}>📊 Resumen</h4>
             {[{ label: "Tiempo total", value: tiempoTotal + " min" }, { label: "Costo total", value: "$" + costoTotal.toLocaleString() }].map(r => (
@@ -330,67 +305,110 @@ export default function Ordenes() {
   const [mostrarFormulario, setMostrarFormulario] = useState(false)
   const [filtroEstado, setFiltroEstado] = useState("todos")
   const [busqueda, setBusqueda] = useState("")
-  const [sector, setSector] = useState("")
-  const [maquina, setMaquina] = useState("")
-  const [parte, setParte] = useState("")
+  const [sectorId, setSectorId] = useState("")
+  const [maquinaId, setMaquinaId] = useState("")
+  const [parteId, setParteId] = useState("")
   const [descripcion, setDescripcion] = useState("")
   const [imagenUrl, setImagenUrl] = useState("")
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState("")
 
+  // Catálogo cargado desde Configuración
+  const [sectores, setSectores] = useState([])
+  const [maquinas, setMaquinas] = useState([])
+  const [partes, setPartes] = useState([])
+
   const puedeCrear = usuario?.rol === 'produccion' || usuario?.rol === 'admin' || usuario?.rol === 'mantenimiento'
   const isMant = usuario?.rol === 'mantenimiento' || usuario?.rol === 'admin' || usuario?.rol === 'superadmin'
   const canEdit = usuario?.rol !== 'visualizacion'
   const esAdmin = usuario?.rol === 'admin'
-  const maquinasDisponibles = sector ? (MAQUINAS[sector] || []) : []
+
+  useEffect(() => {
+    const cargarCatalogo = async () => {
+      if (!usuario?.empresa_id) return
+      const [{ data: sec }, { data: maq }, { data: par }] = await Promise.all([
+        supabase.from('sectores').select('*').eq('activo', true).eq('empresa_id', usuario.empresa_id).order('nombre'),
+        supabase.from('maquinas').select('*').eq('activo', true).eq('empresa_id', usuario.empresa_id).order('nombre'),
+        supabase.from('partes').select('*').eq('activo', true).eq('empresa_id', usuario.empresa_id).order('nombre'),
+      ])
+      setSectores(sec || [])
+      setMaquinas(maq || [])
+      setPartes(par || [])
+    }
+    cargarCatalogo()
+  }, [usuario?.empresa_id])
+
+  const maquinasDisponibles = sectorId ? maquinas.filter(m => m.sector_id === sectorId) : []
+  const partesDisponibles = maquinaId ? partes.filter(p => p.maquina_id === maquinaId) : []
 
   const generarNumero = () => `OT-${new Date().getFullYear()}-${String(ordenes.length + 1).padStart(3, "0")}`
 
+  const limpiarForm = () => {
+    setSectorId(""); setMaquinaId(""); setParteId(""); setDescripcion(""); setImagenUrl(""); setError("")
+  }
+
   const handleCrearOrden = async () => {
-    if (!sector || !maquina || !parte || !descripcion) { setError("Completá todos los campos"); return }
+    if (!sectorId || !maquinaId || !descripcion) { setError("Completá sector, máquina y descripción"); return }
     setGuardando(true); setError("")
+    const sectorNombre = sectores.find(s => s.id === sectorId)?.nombre || null
+    const maquinaNombre = maquinas.find(m => m.id === maquinaId)?.nombre || null
+    const parteNombre = partes.find(p => p.id === parteId)?.nombre || null
+    const numero = generarNumero()
     try {
-      await crearOrden({ numero: generarNumero(), fecha: new Date().toISOString().split("T")[0], sector_id: null, maquina_id: null, parte, descripcion, imagen_url: imagenUrl || null, estado: "pendiente", solicitante_id: null })
-      setSector(""); setMaquina(""); setParte(""); setDescripcion(""); setImagenUrl("")
+      await crearOrden({
+        numero,
+        fecha: new Date().toISOString().split("T")[0],
+        sector: sectorNombre,
+        maquina: maquinaNombre,
+        parte: parteNombre,
+        descripcion,
+        imagen_url: imagenUrl || null,
+        estado: "pendiente",
+        solicitante_id: usuario?.id || null,
+        solicitante_nombre: `${usuario?.nombre || ""} ${usuario?.apellido || ""}`.trim() || null,
+      })
       try {
         await enviarEmail({
           para: "electrodeliverycomercial@gmail.com",
-          asunto: `MANTIS — Nueva orden creada`,
-          html: templateNuevaOrden({ numeroOrden: generarNumero(), parte, descripcion, empresa: "Mi Empresa" })
+          asunto: `MANTIS — Nueva orden ${numero}`,
+          html: templateNuevaOrden({ numeroOrden: numero, parte: parteNombre || maquinaNombre, descripcion, empresa: "Mi Empresa" })
         })
       } catch (e) { console.log("Email no enviado:", e) }
+      limpiarForm()
       setMostrarFormulario(false)
     } catch { setError("Error al crear la orden.") }
     finally { setGuardando(false) }
   }
 
   const handleEliminarOrden = async (id) => {
-  if (!confirm("¿Eliminar esta orden de trabajo? Se eliminará también su historial y mensajes.")) return
-  await eliminarOrden(id)
-  await supabase.from('historial_ordenes').delete().eq('orden_id', id)
-  await supabase.from('mensajes_orden').delete().eq('orden_id', id)
-  await supabase.from('ordenes_trabajo').delete().eq('id', id)
-  setOrdenes(prev => prev.filter(o => o.id !== id))
-}
+    if (!confirm("¿Eliminar esta orden de trabajo? Se eliminará también su historial y mensajes.")) return
+    await eliminarOrden(id)
+  }
 
   if (ordenSeleccionada) {
     const ordenActual = ordenes.find(o => o.id === ordenSeleccionada.id) || ordenSeleccionada
     return <DetalleOrden orden={ordenActual} onVolver={() => setOrdenSeleccionada(null)} actualizarEstado={actualizarEstado} cargarHistorial={cargarHistorial} isMant={isMant} canEdit={canEdit} />
   }
 
+  const q = busqueda.toLowerCase()
   const ordenesFiltradas = ordenes
     .filter(o => filtroEstado === "todos" || o.estado === filtroEstado)
-    .filter(o => !busqueda || o.numero?.toLowerCase().includes(busqueda.toLowerCase()) || o.parte?.toLowerCase().includes(busqueda.toLowerCase()) || o.descripcion?.toLowerCase().includes(busqueda.toLowerCase()))
+    .filter(o => !busqueda ||
+      o.numero?.toLowerCase().includes(q) ||
+      o.parte?.toLowerCase().includes(q) ||
+      o.maquina?.toLowerCase().includes(q) ||
+      o.sector?.toLowerCase().includes(q) ||
+      o.descripcion?.toLowerCase().includes(q))
 
   return (
     <div>
       <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap", alignItems: "center" }}>
         {puedeCrear && (
-          <button onClick={() => setMostrarFormulario(true)} style={{ padding: "10px 18px", borderRadius: 10, border: "none", background: "linear-gradient(90deg,#6366f1,#8b5cf6)", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+          <button onClick={() => { limpiarForm(); setMostrarFormulario(true) }} style={{ padding: "10px 18px", borderRadius: 10, border: "none", background: "linear-gradient(90deg,#6366f1,#8b5cf6)", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
             + Nueva Orden de Trabajo
           </button>
         )}
-        <input type="text" value={busqueda} onChange={e => setBusqueda(e.target.value)} placeholder="🔍 Buscar por número, parte o descripción..." style={{ padding: "9px 14px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 13, outline: "none", fontFamily: "inherit", background: "#fff", width: 300 }} />
+        <input type="text" value={busqueda} onChange={e => setBusqueda(e.target.value)} placeholder="🔍 Buscar por número, sector, máquina o descripción..." style={{ padding: "9px 14px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 13, outline: "none", fontFamily: "inherit", background: "#fff", width: 320 }} />
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
           {["todos", "pendiente", "agendado", "en_proceso", "espera_mat", "resuelto"].map(e => (
             <button key={e} onClick={() => setFiltroEstado(e)} style={{ padding: "8px 14px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "inherit", background: filtroEstado === e ? "#0f172a" : "#fff", color: filtroEstado === e ? "#fff" : "#64748b", boxShadow: "0 1px 4px #00000010" }}>
@@ -406,11 +424,11 @@ export default function Ordenes() {
       {cargando ? (
         <div style={{ textAlign: "center", padding: 60, color: "#94a3b8" }}>⚙ Cargando órdenes...</div>
       ) : (
-        <div style={{ background: "#fff", borderRadius: 14, overflow: "hidden", boxShadow: "0 1px 8px #00000010" }}>
+        <div style={{ background: "#fff", borderRadius: 14, overflow: "auto", boxShadow: "0 1px 8px #00000010" }}>
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
-                {["N° OT", "Fecha", "Parte", "Descripción", "Estado", ""].map(h => (
+                {["N° OT", "Fecha", "Sector / Máquina", "Descripción", "Estado", ""].map(h => (
                   <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>{h}</th>
                 ))}
               </tr>
@@ -422,8 +440,11 @@ export default function Ordenes() {
                     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>{o.numero}{o.imagen_url && <span title="Tiene imagen">📎</span>}</div>
                   </td>
                   <td style={{ padding: "12px 16px", fontSize: 12, color: "#64748b" }}>{o.fecha}</td>
-                  <td style={{ padding: "12px 16px", fontSize: 12 }}>{o.parte}</td>
-                  <td style={{ padding: "12px 16px", fontSize: 12, color: "#64748b", maxWidth: 200, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.descripcion}</td>
+                  <td style={{ padding: "12px 16px", fontSize: 12 }}>
+                    <div style={{ fontWeight: 600, color: "#0f172a" }}>{o.maquina || o.parte || "—"}</div>
+                    {o.sector && <div style={{ fontSize: 11, color: "#94a3b8" }}>{o.sector}{o.parte ? ` · ${o.parte}` : ""}</div>}
+                  </td>
+                  <td style={{ padding: "12px 16px", fontSize: 12, color: "#64748b", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.descripcion}</td>
                   <td style={{ padding: "12px 16px" }}><BadgeEstado estado={o.estado} /></td>
                   <td style={{ padding: "12px 16px" }}>
                     <div style={{ display: "flex", gap: 6 }}>
@@ -449,26 +470,31 @@ export default function Ordenes() {
               <button onClick={() => setMostrarFormulario(false)} style={{ background: "#f1f5f9", border: "none", borderRadius: 8, width: 28, height: 28, cursor: "pointer", fontSize: 16, color: "#64748b" }}>×</button>
             </div>
             <div style={{ padding: 24 }}>
+              {sectores.length === 0 && (
+                <div style={{ background: "#fef3c7", color: "#92400e", borderRadius: 8, padding: "10px 12px", fontSize: 12, marginBottom: 14 }}>
+                  ⚠️ No hay sectores cargados. Pedile al administrador que los cargue en Configuración.
+                </div>
+              )}
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
                 <div>
-                  <label style={labelStyle}>Sector</label>
-                  <select value={sector} onChange={e => { setSector(e.target.value); setMaquina("") }} style={inputStyle}>
+                  <label style={labelStyle}>Sector *</label>
+                  <select value={sectorId} onChange={e => { setSectorId(e.target.value); setMaquinaId(""); setParteId("") }} style={inputStyle}>
                     <option value="">Seleccionar...</option>
-                    {SECTORES.map(s => <option key={s}>{s}</option>)}
+                    {sectores.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label style={labelStyle}>Máquina</label>
-                  <select value={maquina} onChange={e => setMaquina(e.target.value)} style={inputStyle} disabled={!sector}>
+                  <label style={labelStyle}>Máquina *</label>
+                  <select value={maquinaId} onChange={e => { setMaquinaId(e.target.value); setParteId("") }} style={inputStyle} disabled={!sectorId}>
                     <option value="">Seleccionar...</option>
-                    {maquinasDisponibles.map(m => <option key={m}>{m}</option>)}
+                    {maquinasDisponibles.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
                   </select>
                 </div>
                 <div>
                   <label style={labelStyle}>Parte / Componente</label>
-                  <select value={parte} onChange={e => setParte(e.target.value)} style={inputStyle}>
-                    <option value="">Seleccionar...</option>
-                    {PARTES.map(p => <option key={p}>{p}</option>)}
+                  <select value={parteId} onChange={e => setParteId(e.target.value)} style={inputStyle} disabled={!maquinaId}>
+                    <option value="">{maquinaId && partesDisponibles.length === 0 ? "Sin partes cargadas" : "Seleccionar (opcional)..."}</option>
+                    {partesDisponibles.map(p => <option key={p.id} value={p.id}>{p.nombre}</option>)}
                   </select>
                 </div>
                 <div>
@@ -477,7 +503,7 @@ export default function Ordenes() {
                 </div>
               </div>
               <div style={{ marginBottom: 14 }}>
-                <label style={labelStyle}>Descripción del problema</label>
+                <label style={labelStyle}>Descripción del problema *</label>
                 <textarea value={descripcion} onChange={e => setDescripcion(e.target.value)} rows={4} placeholder="Describa el problema o falla detectada..." style={{ ...inputStyle, resize: "vertical" }} />
               </div>
               <div style={{ marginBottom: 14 }}>

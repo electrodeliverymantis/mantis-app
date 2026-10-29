@@ -20,15 +20,16 @@ export default function Configuracion() {
 
   const [form, setForm] = useState({ nombre: "", descripcion: "", imagen_url: "", sector_id: "", maquina_id: "" })
 
-  const empresaId = usuario?.empresa_id || 'd0098530-4e23-48ef-86dd-bf12a6aa0ef4'
+  const empresaId = usuario?.empresa_id
 
   const cargarDatos = async () => {
+    if (!empresaId) return
     setCargando(true)
     try {
       const [{ data: sec }, { data: maq }, { data: par }] = await Promise.all([
-        supabase.from('sectores').select('*').eq('activo', true).order('nombre'),
-        supabase.from('maquinas').select('*').eq('activo', true).order('nombre'),
-        supabase.from('partes').select('*').eq('activo', true).order('nombre'),
+        supabase.from('sectores').select('*').eq('activo', true).eq('empresa_id', empresaId).order('nombre'),
+        supabase.from('maquinas').select('*').eq('activo', true).eq('empresa_id', empresaId).order('nombre'),
+        supabase.from('partes').select('*').eq('activo', true).eq('empresa_id', empresaId).order('nombre'),
       ])
       setSectores(sec || [])
       setMaquinas(maq || [])
@@ -37,7 +38,7 @@ export default function Configuracion() {
     finally { setCargando(false) }
   }
 
-  useEffect(() => { cargarDatos() }, [])
+  useEffect(() => { if (empresaId) cargarDatos() }, [empresaId])
 
   const abrirForm = (item = null) => {
     if (item) {
