@@ -15,7 +15,21 @@ const estadoConfig = {
   espera_respuesta:  { etiqueta: "Esp. Respuesta",  color: "#7c3aed", bg: "#f5f3ff", icono: "💬" },
   resuelto:          { etiqueta: "Resuelto",        color: "#10b981", bg: "#d1fae5", icono: "✅" },
 }
+const prioridadConfig = {
+  urgente: { etiqueta: "Urgente", color: "#dc2626", bg: "#fee2e2", icono: "🔴", orden: 1 },
+  alta:    { etiqueta: "Alta",    color: "#ea580c", bg: "#ffedd5", icono: "🟠", orden: 2 },
+  media:   { etiqueta: "Media",   color: "#ca8a04", bg: "#fef9c3", icono: "🟡", orden: 3 },
+  baja:    { etiqueta: "Baja",    color: "#16a34a", bg: "#dcfce7", icono: "🟢", orden: 4 },
+}
 
+function BadgePrioridad({ prioridad }) {
+  const cfg = prioridadConfig[prioridad] || prioridadConfig.media
+  return (
+    <span style={{ background: cfg.bg, color: cfg.color, border: `1px solid ${cfg.color}40`, borderRadius: 20, padding: "3px 10px", fontSize: 11, fontWeight: 700, whiteSpace: "nowrap" }}>
+      {cfg.icono} {cfg.etiqueta}
+    </span>
+  )
+}
 function BadgeEstado({ estado }) {
   const cfg = estadoConfig[estado] || { etiqueta: estado, color: "#6b7280", bg: "#f3f4f6", icono: "•" }
   return (
@@ -299,21 +313,23 @@ function DetalleOrden({ orden, onVolver, actualizarEstado, cargarHistorial, isMa
 }
 
 export default function Ordenes() {
-  const { ordenes, cargando, crearOrden, actualizarEstado, cargarHistorial, eliminarOrden } = useOrdenes()
+  const { ordenes, cargando, crearOrden, actualizarEstado, cargarHistorial, eliminarOrden, recargar } = useOrdenes()
   const { usuario } = useAuth()
   const [ordenSeleccionada, setOrdenSeleccionada] = useState(null)
   const [mostrarFormulario, setMostrarFormulario] = useState(false)
   const [filtroEstado, setFiltroEstado] = useState("todos")
+  const [filtroPrioridad, setFiltroPrioridad] = useState("todas")
+  const [ordenarPor, setOrdenarPor] = useState("prioridad")
   const [busqueda, setBusqueda] = useState("")
   const [sectorId, setSectorId] = useState("")
   const [maquinaId, setMaquinaId] = useState("")
   const [parteId, setParteId] = useState("")
+  const [prioridad, setPrioridad] = useState("media")
   const [descripcion, setDescripcion] = useState("")
   const [imagenUrl, setImagenUrl] = useState("")
   const [guardando, setGuardando] = useState(false)
   const [error, setError] = useState("")
 
-  // Catálogo cargado desde Configuración
   const [sectores, setSectores] = useState([])
   const [maquinas, setMaquinas] = useState([])
   const [partes, setPartes] = useState([])
@@ -344,11 +360,12 @@ export default function Ordenes() {
   const generarNumero = () => `OT-${new Date().getFullYear()}-${String(ordenes.length + 1).padStart(3, "0")}`
 
   const limpiarForm = () => {
-    setSectorId(""); setMaquinaId(""); setParteId(""); setDescripcion(""); setImagenUrl(""); setError("")
+    setSectorId(""); setMaquinaId(""); setParteId(""); setPrioridad("media")
+    setDescripcion(""); setImagenUrl(""); setError("")
   }
 
   const handleCrearOrden = async () => {
-    if (!sectorId || !maquinaId || !descripcion) { setError("Completá sector, máquina y descripción"); return }
+    if (!descripcion.trim()) { setError("Escribí una descripción del problema"); return }
     setGuardando(true); setError("")
     const sectorNombre = sectores.find(s => s.id === sectorId)?.nombre || null
     const maquinaNombre = maquinas.find(m => m.id === maquinaId)?.nombre || null
@@ -361,6 +378,7 @@ export default function Ordenes() {
         sector: sectorNombre,
         maquina: maquinaNombre,
         parte: parteNombre,
+        prioridad,
         descripcion,
         imagen_url: imagenUrl || null,
         estado: "pendiente",
@@ -370,7 +388,7 @@ export default function Ordenes() {
       try {
         await enviarEmail({
           para: "electrodeliverycomercial@gmail.com",
-          asunto: `MANTIS — Nueva orden ${numero}`,
+          asunto: `MANTIS — Nueva orden ${numero} (${prioridadConfig[prioridad]?.etiqueta})`,
           html: templateNuevaOrden({ numeroOrden: numero, parte: parteNombre || maquinaNombre, descripcion, empresa: "Mi Empresa" })
         })
       } catch (e) { console.log("Email no enviado:", e) }
@@ -378,6 +396,12 @@ export default function Ordenes() {
       setMostrarFormulario(false)
     } catch { setError("Error al crear la orden.") }
     finally { setGuardando(false) }
+  }
+
+  const handleCambiarPrioridad = async (id, nueva) => {
+    const { error } = await supabase.from('ordenes_trabajo').update({ prioridad: nueva }).eq('id', id)
+    if (error) { alert("No se pudo cambiar la prioridad"); return }
+    recargar()
   }
 
   const handleEliminarOrden = async (id) => {
@@ -393,32 +417,63 @@ export default function Ordenes() {
   const q = busqueda.toLowerCase()
   const ordenesFiltradas = ordenes
     .filter(o => filtroEstado === "todos" || o.estado === filtroEstado)
+    .filter(o => filtroPrioridad === "todas" || (o.prioridad || "media") === filtroPrioridad)
     .filter(o => !busqueda ||
       o.numero?.toLowerCase().includes(q) ||
       o.parte?.toLowerCase().includes(q) ||
       o.maquina?.toLowerCase().includes(q) ||
       o.sector?.toLowerCase().includes(q) ||
       o.descripcion?.toLowerCase().includes(q))
+    .sort((a, b) => {
+      if (ordenarPor === "prioridad") {
+        const pa = prioridadConfig[a.prioridad || "media"]?.orden || 3
+        const pb = prioridadConfig[b.prioridad || "media"]?.orden || 3
+        if (pa !== pb) return pa - pb
+      }
+      return new Date(b.created_at || b.fecha) - new Date(a.created_at || a.fecha)
+    })
+
+  const botonFiltro = (activo) => ({
+    padding: "8px 14px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "inherit",
+    background: activo ? "#0f172a" : "#fff", color: activo ? "#fff" : "#64748b", boxShadow: "0 1px 4px #00000010"
+  })
 
   return (
     <div>
-      <div style={{ display: "flex", gap: 10, marginBottom: 20, flexWrap: "wrap", alignItems: "center" }}>
+      <div style={{ display: "flex", gap: 10, marginBottom: 12, flexWrap: "wrap", alignItems: "center" }}>
         {puedeCrear && (
           <button onClick={() => { limpiarForm(); setMostrarFormulario(true) }} style={{ padding: "10px 18px", borderRadius: 10, border: "none", background: "linear-gradient(90deg,#6366f1,#8b5cf6)", color: "#fff", fontWeight: 700, fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
             + Nueva Orden de Trabajo
           </button>
         )}
-        <input type="text" value={busqueda} onChange={e => setBusqueda(e.target.value)} placeholder="🔍 Buscar por número, sector, máquina o descripción..." style={{ padding: "9px 14px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 13, outline: "none", fontFamily: "inherit", background: "#fff", width: 320 }} />
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {["todos", "pendiente", "agendado", "en_proceso", "espera_mat", "resuelto"].map(e => (
-            <button key={e} onClick={() => setFiltroEstado(e)} style={{ padding: "8px 14px", borderRadius: 8, border: "none", cursor: "pointer", fontSize: 12, fontWeight: 600, fontFamily: "inherit", background: filtroEstado === e ? "#0f172a" : "#fff", color: filtroEstado === e ? "#fff" : "#64748b", boxShadow: "0 1px 4px #00000010" }}>
-              {e === "todos" ? "Todos" : estadoConfig[e]?.etiqueta}
-              <span style={{ marginLeft: 4, borderRadius: 10, padding: "1px 6px", fontSize: 11, background: filtroEstado === e ? "#ffffff30" : "#f1f5f9" }}>
-                {e === "todos" ? ordenes.length : ordenes.filter(o => o.estado === e).length}
-              </span>
-            </button>
-          ))}
+        <input type="text" value={busqueda} onChange={e => setBusqueda(e.target.value)} placeholder="🔍 Buscar por número, sector, máquina o descripción..." style={{ padding: "9px 14px", borderRadius: 8, border: "1.5px solid #e2e8f0", fontSize: 13, outline: "none", fontFamily: "inherit", background: "#fff", width: 320, maxWidth: "100%" }} />
+        <div style={{ display: "flex", gap: 4, background: "#fff", borderRadius: 10, padding: 4, boxShadow: "0 1px 4px #00000010" }}>
+          <button onClick={() => setOrdenarPor("prioridad")} style={{ ...botonFiltro(ordenarPor === "prioridad"), boxShadow: "none" }}>🔥 Por prioridad</button>
+          <button onClick={() => setOrdenarPor("fecha")} style={{ ...botonFiltro(ordenarPor === "fecha"), boxShadow: "none" }}>📅 Por fecha</button>
         </div>
+      </div>
+
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+        <button onClick={() => setFiltroPrioridad("todas")} style={botonFiltro(filtroPrioridad === "todas")}>Todas las prioridades</button>
+        {Object.entries(prioridadConfig).map(([k, cfg]) => (
+          <button key={k} onClick={() => setFiltroPrioridad(k)} style={botonFiltro(filtroPrioridad === k)}>
+            {cfg.icono} {cfg.etiqueta}
+            <span style={{ marginLeft: 4, borderRadius: 10, padding: "1px 6px", fontSize: 11, background: filtroPrioridad === k ? "#ffffff30" : "#f1f5f9" }}>
+              {ordenes.filter(o => (o.prioridad || "media") === k && o.estado !== "resuelto").length}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 20 }}>
+        {["todos", "pendiente", "agendado", "en_proceso", "espera_mat", "resuelto"].map(e => (
+          <button key={e} onClick={() => setFiltroEstado(e)} style={botonFiltro(filtroEstado === e)}>
+            {e === "todos" ? "Todos" : estadoConfig[e]?.etiqueta}
+            <span style={{ marginLeft: 4, borderRadius: 10, padding: "1px 6px", fontSize: 11, background: filtroEstado === e ? "#ffffff30" : "#f1f5f9" }}>
+              {e === "todos" ? ordenes.length : ordenes.filter(o => o.estado === e).length}
+            </span>
+          </button>
+        ))}
       </div>
 
       {cargando ? (
@@ -428,35 +483,50 @@ export default function Ordenes() {
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ background: "#f8fafc", borderBottom: "2px solid #e2e8f0" }}>
-                {["N° OT", "Fecha", "Sector / Máquina", "Descripción", "Estado", ""].map(h => (
+                {["Prioridad", "N° OT", "Fecha", "Sector / Máquina", "Descripción", "Estado", ""].map(h => (
                   <th key={h} style={{ padding: "12px 16px", textAlign: "left", fontSize: 11, fontWeight: 700, color: "#64748b", textTransform: "uppercase" }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {ordenesFiltradas.map((o, i) => (
-                <tr key={o.id} style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 === 0 ? "#fff" : "#fafafa" }}>
-                  <td style={{ padding: "12px 16px", fontSize: 13, fontWeight: 700, color: "#6366f1" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>{o.numero}{o.imagen_url && <span title="Tiene imagen">📎</span>}</div>
-                  </td>
-                  <td style={{ padding: "12px 16px", fontSize: 12, color: "#64748b" }}>{o.fecha}</td>
-                  <td style={{ padding: "12px 16px", fontSize: 12 }}>
-                    <div style={{ fontWeight: 600, color: "#0f172a" }}>{o.maquina || o.parte || "—"}</div>
-                    {o.sector && <div style={{ fontSize: 11, color: "#94a3b8" }}>{o.sector}{o.parte ? ` · ${o.parte}` : ""}</div>}
-                  </td>
-                  <td style={{ padding: "12px 16px", fontSize: 12, color: "#64748b", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.descripcion}</td>
-                  <td style={{ padding: "12px 16px" }}><BadgeEstado estado={o.estado} /></td>
-                  <td style={{ padding: "12px 16px" }}>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <button onClick={() => setOrdenSeleccionada(o)} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "#374151", fontFamily: "inherit" }}>Ver →</button>
-                      {esAdmin && (
-                        <button onClick={() => handleEliminarOrden(o.id)} style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #ef444440", background: "#fee2e2", color: "#ef4444", cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>🗑</button>
+              {ordenesFiltradas.map((o, i) => {
+                const prio = o.prioridad || "media"
+                return (
+                  <tr key={o.id} style={{ borderBottom: "1px solid #f1f5f9", background: i % 2 === 0 ? "#fff" : "#fafafa", borderLeft: `4px solid ${prioridadConfig[prio]?.color}` }}>
+                    <td style={{ padding: "12px 16px" }}>
+                      {isMant && o.estado !== "resuelto" ? (
+                        <select value={prio} onChange={e => handleCambiarPrioridad(o.id, e.target.value)}
+                          style={{ padding: "4px 6px", borderRadius: 8, border: `1px solid ${prioridadConfig[prio]?.color}60`, background: prioridadConfig[prio]?.bg, color: prioridadConfig[prio]?.color, fontSize: 11, fontWeight: 700, fontFamily: "inherit", cursor: "pointer" }}>
+                          {Object.entries(prioridadConfig).map(([k, cfg]) => (
+                            <option key={k} value={k}>{cfg.icono} {cfg.etiqueta}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <BadgePrioridad prioridad={prio} />
                       )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {ordenesFiltradas.length === 0 && <tr><td colSpan={6} style={{ padding: 40, textAlign: "center", color: "#94a3b8", fontSize: 14 }}>No hay órdenes todavía</td></tr>}
+                    </td>
+                    <td style={{ padding: "12px 16px", fontSize: 13, fontWeight: 700, color: "#6366f1" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>{o.numero}{o.imagen_url && <span title="Tiene imagen">📎</span>}</div>
+                    </td>
+                    <td style={{ padding: "12px 16px", fontSize: 12, color: "#64748b" }}>{o.fecha}</td>
+                    <td style={{ padding: "12px 16px", fontSize: 12 }}>
+                      <div style={{ fontWeight: 600, color: "#0f172a" }}>{o.maquina || o.parte || "—"}</div>
+                      {o.sector && <div style={{ fontSize: 11, color: "#94a3b8" }}>{o.sector}{o.parte ? ` · ${o.parte}` : ""}</div>}
+                    </td>
+                    <td style={{ padding: "12px 16px", fontSize: 12, color: "#64748b", maxWidth: 220, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.descripcion}</td>
+                    <td style={{ padding: "12px 16px" }}><BadgeEstado estado={o.estado} /></td>
+                    <td style={{ padding: "12px 16px" }}>
+                      <div style={{ display: "flex", gap: 6 }}>
+                        <button onClick={() => setOrdenSeleccionada(o)} style={{ padding: "6px 12px", borderRadius: 8, border: "1px solid #e2e8f0", background: "#fff", cursor: "pointer", fontSize: 12, fontWeight: 600, color: "#374151", fontFamily: "inherit" }}>Ver →</button>
+                        {esAdmin && (
+                          <button onClick={() => handleEliminarOrden(o.id)} style={{ padding: "6px 10px", borderRadius: 8, border: "1px solid #ef444440", background: "#fee2e2", color: "#ef4444", cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>🗑</button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
+              {ordenesFiltradas.length === 0 && <tr><td colSpan={7} style={{ padding: 40, textAlign: "center", color: "#94a3b8", fontSize: 14 }}>No hay órdenes con este filtro</td></tr>}
             </tbody>
           </table>
         </div>
@@ -470,23 +540,33 @@ export default function Ordenes() {
               <button onClick={() => setMostrarFormulario(false)} style={{ background: "#f1f5f9", border: "none", borderRadius: 8, width: 28, height: 28, cursor: "pointer", fontSize: 16, color: "#64748b" }}>×</button>
             </div>
             <div style={{ padding: 24 }}>
-              {sectores.length === 0 && (
-                <div style={{ background: "#fef3c7", color: "#92400e", borderRadius: 8, padding: "10px 12px", fontSize: 12, marginBottom: 14 }}>
-                  ⚠️ No hay sectores cargados. Pedile al administrador que los cargue en Configuración.
+              <div style={{ marginBottom: 14 }}>
+                <label style={labelStyle}>Prioridad</label>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
+                  {Object.entries(prioridadConfig).map(([k, cfg]) => (
+                    <button key={k} type="button" onClick={() => setPrioridad(k)} style={{
+                      padding: "10px 4px", borderRadius: 10, cursor: "pointer", fontSize: 12, fontWeight: 700, fontFamily: "inherit",
+                      border: prioridad === k ? `2px solid ${cfg.color}` : "1.5px solid #e2e8f0",
+                      background: prioridad === k ? cfg.bg : "#fff",
+                      color: prioridad === k ? cfg.color : "#64748b"
+                    }}>
+                      {cfg.icono}<br />{cfg.etiqueta}
+                    </button>
+                  ))}
                 </div>
-              )}
+              </div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
                 <div>
-                  <label style={labelStyle}>Sector *</label>
+                  <label style={labelStyle}>Sector</label>
                   <select value={sectorId} onChange={e => { setSectorId(e.target.value); setMaquinaId(""); setParteId("") }} style={inputStyle}>
-                    <option value="">Seleccionar...</option>
+                    <option value="">Seleccionar (opcional)...</option>
                     {sectores.map(s => <option key={s.id} value={s.id}>{s.nombre}</option>)}
                   </select>
                 </div>
                 <div>
-                  <label style={labelStyle}>Máquina *</label>
+                  <label style={labelStyle}>Máquina</label>
                   <select value={maquinaId} onChange={e => { setMaquinaId(e.target.value); setParteId("") }} style={inputStyle} disabled={!sectorId}>
-                    <option value="">Seleccionar...</option>
+                    <option value="">Seleccionar (opcional)...</option>
                     {maquinasDisponibles.map(m => <option key={m.id} value={m.id}>{m.nombre}</option>)}
                   </select>
                 </div>
